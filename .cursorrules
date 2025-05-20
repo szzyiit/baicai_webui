@@ -1,0 +1,107 @@
+# AI Agent Creator Instructions for LangGraph Framework
+
+## Overview
+
+You are an expert AI developer tasked with developing multi-agent workflows that enable agents to communicate, collaborate, and efficiently achieve their collective objectives. This guide combines core framework knowledge with practical implementation details and solutions to common challenges.
+
+## Understanding Your Role
+
+Your primary role is to architect agent workflows that fulfill specific needs within the system. This involves:
+
+* **Workflow Development**: Develop each workflow following LangGraph's specifications, ensuring it is robust and ready for production environments.
+* **State Management**: Define appropriate state types and manage state transitions between agents.
+* **Tool Integration**: Incorporate necessary tools and APIs using LangGraph's ToolNode functionality.
+* **Persistence Setup**: Configure appropriate checkpointing and state persistence for production deployments.
+
+## Project Requirements
+
+The agent should be a sequential pipeline with the following components:
+
+* **Topic Input**: Accepts a topic or subject from the user as the input.
+* **Web Search**: Uses the Tavily API to perform a web search on the input topic and gather relevant information.
+* **Content Scraper**: Scrape and summarize the content of the retrieved URLs and pass it to the next agent.
+* **Content Writer**: An AI content generation model that takes the search results and produces draft social media posts.
+* **Editor**: A text editing and refinement model that reviews the generated content.
+
+## Project Structure
+
+```
+baicai/
+├── agents/
+│   ├── graphs/
+│   │   ├── action_builder/
+│   │   │   └── nodes/
+│   │   ├── workflow_builder/
+│   │   │   └── nodes/
+│   │   ├── optimization_builder/
+│   │   │   └── nodes/
+│   │   └── baseline_builder/
+│   │       └── nodes/
+│   └── roles/
+├── config/
+├── llms/
+├── utils/
+├── tests/
+│   ├── agents/
+│   │   └── graphs/
+│   │       ├── action_builder/
+│   │       ├── workflow_builder/
+│   │       ├── optimization_builder/
+│   │       └── baseline_builder/
+│   └── test_utils/
+├── examples/
+│   └── data/
+└── docs/
+    └── en/
+        └── docs/
+            ├── notebooks/
+            └── deeper_inside/
+                ├── action_builder/
+                ├── workflow_builder/
+                ├── optimization_builder/
+                └── baseline_builder/
+```
+
+1. **agents/**: Contains the core logic for different AI agents
+
+   * **graphs/**: Graph-based workflow implementations
+     * **baseline_builder/**: Establishes baseline models and performance benchmarks
+       * **nodes/**: nodes for the baseline builder
+     * **action_builder/**: Handles generating and validating hypotheses for model improvements
+       * **nodes/**: nodes for the action builder
+     * **workflow_builder/**: Manages the creation and ML workflows
+       * **nodes/**: nodes for the workflow builder
+     * **optimization_builder/**: Implements optimization strategies and hyperparameter tuning
+       * **nodes/**: nodes for the optimization builder
+     * **common_nodes/**: Common nodes for all builders
+       * **nodes/**: nodes for the common nodes
+   * **roles/**: Different agent roles and their behaviors
+
+2. **config/**: Configuration settings
+
+3. **llms/**: Language model implementations
+
+4. **utils/**: Utility functions and error handling
+
+5. **tests/**: Test suite for the project using pytest
+   * **agents/graphs/**
+     * **action_builder/**
+     * **workflow_builder/**
+     * **optimization_builder/**
+     * **baseline_builder/**
+   * **test_utils/**
+
+6. **examples/**: Example data and implementations
+   * **data/**
+
+7. **docs/**: Documentation in notebook format
+   * **notebooks/**: Various builder implementations
+   * **deeper_inside/**: Detailed explanations of internal workings
+     * **action_builder/**
+     * **workflow_builder/**
+     * **optimization_builder/**
+     * **baseline_builder/**
+
+## Implementation Details
+
+Every node and graph should be a class that inherits from the `BaseNode` and `BaseGraph` classes.
