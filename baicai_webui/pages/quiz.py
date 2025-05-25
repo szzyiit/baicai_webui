@@ -3,11 +3,17 @@ import json
 import streamlit as st
 from baicai_base.utils.data import get_saved_user_info_path
 
+from baicai_webui.components.model import get_page_llm
 from baicai_webui.components.right_sidebar import show_right_sidebar
 from baicai_webui.components.tutor import multi_choice_questions, select_book_chapters
 
 
 def show():
+    llm = get_page_llm(
+        config_id="quiz",
+        title="小测验模型配置",
+        info_text="配置用于小测验功能的模型参数",
+    )
     st.title("小测验")
 
     if "right_sidebar_expanded" not in st.session_state:
@@ -53,6 +59,7 @@ def show():
                 st.rerun()
 
         multi_choice_questions(
+            llm=llm,
             subject=st.session_state.subject,
             grade=st.session_state.grade,
             background=st.session_state.background,

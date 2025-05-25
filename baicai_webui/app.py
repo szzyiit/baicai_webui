@@ -36,6 +36,7 @@ def main():
         "自然语言处理": "nlp",  # 对应 sentiment_classifier 配置
         "推荐系统": "collab",  # 对应 collab 配置
         "传统机器学习": "ml",  # 对应 iris/titanic/house 配置
+        "大模型配置": "llm_setting",
     }
 
     # 根据任务导航或手动选择来设置页面

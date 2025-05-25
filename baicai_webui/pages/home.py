@@ -5,7 +5,7 @@ import streamlit_mermaid as stmd
 from baicai_base.utils.data import clear_tmp_files, get_tmp_folder
 
 from baicai_webui.components.button_graph import button_graph
-from baicai_webui.components.llm_settings import render_llm_settings
+from baicai_webui.components.model import render_model_settings
 from baicai_webui.components.tutor import reset_session_state as reset_survey_session_state
 from baicai_webui.components.tutor import survey_flow
 
@@ -215,13 +215,18 @@ def show():
     env_folder = Path.home() / ".baicai" / "env"
     env_folder.mkdir(parents=True, exist_ok=True)
 
+    config_folder = Path.home() / ".baicai" / "configs"
+    config_folder.mkdir(parents=True, exist_ok=True)
+
     st.title("欢迎使用🥬白菜人工智能平台")
 
     # Check if environment variables are set
     env_path = env_folder / ".env"
-    if not env_path.exists():
+    default_config_path = config_folder / "default_config.json"
+
+    if not env_path.exists() or not default_config_path.exists():
         st.write("请先设置人工智能大模型")
-        render_llm_settings(sidebar=False)
+        render_model_settings()
         st.rerun()
 
     # Check if survey.json exists

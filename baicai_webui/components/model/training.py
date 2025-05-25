@@ -27,8 +27,8 @@ class TrainingMonitor:
         </div>
     """
 
-    def __init__(self):
-        self.graph_executor = create_graph_executor()
+    def __init__(self, llm=None):
+        self.graph_executor = create_graph_executor(llm=llm)
         self.result = None
         self.graph = None
         self.app = None
@@ -97,9 +97,6 @@ class TrainingMonitor:
             # 重置当前日志文件
             self._current_log_file = None
 
-            # 获取LLM参数
-            llm_params = self.graph_executor.get_llm_params()
-
             # 根据任务类型选择不同的执行器配置
             if task_type == TaskType.ML.value:  # 机器学习任务
                 self.graph = executor(
@@ -110,14 +107,11 @@ class TrainingMonitor:
                     baseline_codes=baseline_codes,
                     workflow_codes=workflow_codes,
                     actions=actions,
-                    llm_params=llm_params,
                 )
-
             else:  # 深度学习任务
                 self.graph = executor(
                     config,
                     code_interpreter,
-                    llm_params=llm_params,
                 )
             self.app = self.graph.app
             log_container = st.empty()
@@ -239,6 +233,6 @@ class TrainingMonitor:
                 self._display_log_content(content, md_log_container)
 
 
-def create_training_monitor() -> TrainingMonitor:
+def create_training_monitor(llm=None) -> TrainingMonitor:
     """创建训练监控组件"""
-    return TrainingMonitor()
+    return TrainingMonitor(llm=llm)

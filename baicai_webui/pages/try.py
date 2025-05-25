@@ -156,6 +156,12 @@ def try_button_graph():
     button_graph()
 
 
+def try_model_settings():
+    from baicai_webui.components.model.model_settings import render_model_settings
+
+    render_model_settings()
+
+
 def show():
     # try_display_results()
     # try_stepper()
@@ -164,4 +170,5 @@ def show():
     # try_ai_tutor()
     # try_book_chapters()
     # try_tabular_shap()
-    try_button_graph()
+    # try_button_graph()
+    try_model_settings()

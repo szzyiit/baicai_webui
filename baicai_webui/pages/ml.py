@@ -6,7 +6,13 @@ from baicai_base.utils.setups import setup_code_interpreter
 from baicai_dev.utils.data import TaskType
 
 from baicai_webui.components.chat import ai_assistant
-from baicai_webui.components.model import create_shap_analysis, create_training_monitor, display_results, ml_uploader
+from baicai_webui.components.model import (
+    create_shap_analysis,
+    create_training_monitor,
+    display_results,
+    get_page_llm,
+    ml_uploader,
+)
 from baicai_webui.components.stepper import StepperBar
 
 NORMAL_GRAPH = """
@@ -92,9 +98,14 @@ def restart():
 
 
 def _init_session_state():
+    # Initialize LLM with the new configuration method
+    llm = get_page_llm(
+        config_id="ml_llm", title="机器学习模型配置", info_text="配置用于机器学习任务的模型参数", expanded=True
+    )
+
     # 训练监控
     if "monitor" not in st.session_state:
-        st.session_state.monitor = create_training_monitor()
+        st.session_state.monitor = create_training_monitor(llm=llm)
     monitor = st.session_state.monitor
 
     if "code_interpreter" not in st.session_state:
@@ -134,197 +145,13 @@ def _init_session_state():
     return monitor
 
 
-monitor = _init_session_state()
-
-
-# 定义每个步骤的异步执行函数
-async def run_baseline_builder():
-    """运行基线模型构建器"""
-    run()
-    with st.spinner("正在构建基线模型..."):
-        try:
-            result = await monitor.start_training(
-                task_type=TaskType.ML.value,
-                config=st.session_state.data_config,
-                code_interpreter=st.session_state.code_interpreter,
-                auto=False,
-                start_builder="baseline_builder",
-            )
-            st.session_state.runned = True
-            if result:
-                # 保存基线模型的状态
-                state_values = monitor.app.get_state(st.session_state.data_config).values
-                st.session_state.baseline_codes = state_values.get("baseline_codes", [])
-                st.session_state.baseline_success = state_values.get("baseline_success", False)
-
-                # 初始化 graph_state
-                st.session_state.graph_state = {
-                    "messages": [],
-                    "baseline_codes": st.session_state.baseline_codes,
-                    "baseline_success": st.session_state.baseline_success,
-                }
-                st.session_state.helper_ready = True
-                st.session_state.result = result
-                st.session_state.step_status[0] = True
-                # 清除错误消息
-                st.session_state.error_message = None
-                return True
-            return False
-        except Exception as e:
-            st.session_state.error_message = f"基线模型构建失败: {str(e)}"
-            return False
-        finally:
-            st.session_state.running = False
-
-
-async def run_action_builder():
-    """运行特征工程构建器"""
-    run()
-    with st.spinner("正在生成特征工程..."):
-        if not st.session_state.baseline_codes or not st.session_state.baseline_success:
-            st.session_state.error_message = "需要先完成基线模型构建"
-            st.session_state.running = False
-            return False
-
-        try:
-            result = await monitor.start_training(
-                task_type=TaskType.ML.value,
-                config=st.session_state.data_config,
-                code_interpreter=st.session_state.code_interpreter,
-                auto=False,
-                start_builder="action_builder",
-                baseline_codes=st.session_state.baseline_codes,
-            )
-            st.session_state.runned = True
-            if result:
-                # 保存行动构建器的状态
-                state_values = monitor.app.get_state(st.session_state.data_config).values
-                st.session_state.actions = state_values.get("actions", [])
-                st.session_state.action_success = state_values.get("action_success", False)
-
-                # 更新 graph_state
-                if "graph_state" in st.session_state:
-                    st.session_state.graph_state.update(
-                        {
-                            "actions": st.session_state.actions,
-                            "action_success": st.session_state.action_success,
-                        }
-                    )
-                st.session_state.result = result
-                st.session_state.step_status[1] = True
-                # 清除错误消息
-                st.session_state.error_message = None
-                return True
-            return False
-        except Exception as e:
-            st.session_state.error_message = f"行动构建失败: {str(e)}"
-            return False
-        finally:
-            st.session_state.running = False
-
-
-async def run_workflow_builder():
-    """运行工作流构建器"""
-    run()
-    with st.spinner("正在构建工作流..."):
-        if (
-            not st.session_state.baseline_codes
-            or not st.session_state.baseline_success
-            or not st.session_state.actions
-            or not st.session_state.action_success
-        ):
-            st.session_state.error_message = "需要先完成基线模型构建和特征工程"
-            st.session_state.running = False
-            return False
-
-        try:
-            result = await monitor.start_training(
-                task_type=TaskType.ML.value,
-                config=st.session_state.data_config,
-                code_interpreter=st.session_state.code_interpreter,
-                auto=False,
-                start_builder="workflow_builder",
-                baseline_codes=st.session_state.baseline_codes,
-                actions=st.session_state.actions,
-            )
-            st.session_state.runned = True
-            if result:
-                # 保存工作流构建器的状态
-                state_values = monitor.app.get_state(st.session_state.data_config).values
-                st.session_state.workflow_codes = state_values.get("workflow_codes", [])
-                st.session_state.workflow_success = state_values.get("workflow_success", False)
-
-                # 更新 graph_state
-                if "graph_state" in st.session_state:
-                    st.session_state.graph_state.update(
-                        {
-                            "workflow_codes": st.session_state.workflow_codes,
-                            "workflow_success": st.session_state.workflow_success,
-                        }
-                    )
-                st.session_state.result = result
-                st.session_state.step_status[2] = True
-                # 清除错误消息
-                st.session_state.error_message = None
-                return True
-            return False
-        except Exception as e:
-            st.session_state.error_message = f"工作流构建失败: {str(e)}"
-            return False
-        finally:
-            st.session_state.running = False
-
-
-async def run_optimization_builder():
-    """运行优化构建器"""
-    run()
-    with st.spinner("正在进行模型优化..."):
-        if not st.session_state.workflow_codes or not st.session_state.workflow_success:
-            st.session_state.error_message = "需要先完成工作流构建"
-            st.session_state.running = False
-            return False
-
-        try:
-            result = await monitor.start_training(
-                task_type=TaskType.ML.value,
-                config=st.session_state.data_config,
-                code_interpreter=st.session_state.code_interpreter,
-                auto=False,
-                start_builder="optimization_builder",
-                workflow_codes=st.session_state.workflow_codes,
-            )
-
-            st.session_state.runned = True
-            if result:
-                state_values = monitor.app.get_state(st.session_state.data_config).values
-                st.session_state.optimization_codes = state_values.get("optimization_codes", [])
-                st.session_state.optimization_success = state_values.get("optimization_success", False)
-                # 更新 graph_state
-                if "graph_state" in st.session_state:
-                    st.session_state.graph_state.update(
-                        {
-                            "optimization_codes": st.session_state.optimization_codes,
-                            "optimization_success": st.session_state.optimization_success,
-                        }
-                    )
-                st.session_state.result = result
-                st.session_state.step_status[3] = True
-                # 清除错误消息
-                st.session_state.error_message = None
-                return True
-            return False
-        except Exception as e:
-            st.session_state.error_message = f"模型优化失败: {str(e)}"
-            return False
-        finally:
-            st.session_state.running = False
-
-
 def show():
     """
     显示机器学习任务页面
     参考：https://stackoverflow.com/questions/76321835/hide-button-while-model-is-running-in-streamlit
     """
+    monitor = _init_session_state()
+
     st.title("机器学习训练")
 
     # 创建选项卡
@@ -591,3 +418,186 @@ def show_manual_mode(monitor, lock, restart):
 
     # 显示最终日志
     _display_logs(monitor, md_log_container, require_result=False)
+
+
+# 定义每个步骤的异步执行函数
+async def run_baseline_builder():
+    """运行基线模型构建器"""
+    run()
+    with st.spinner("正在构建基线模型..."):
+        try:
+            result = await st.session_state.monitor.start_training(
+                task_type=TaskType.ML.value,
+                config=st.session_state.data_config,
+                code_interpreter=st.session_state.code_interpreter,
+                auto=False,
+                start_builder="baseline_builder",
+            )
+            st.session_state.runned = True
+            if result:
+                # 保存基线模型的状态
+                state_values = st.session_state.monitor.app.get_state(st.session_state.data_config).values
+                st.session_state.baseline_codes = state_values.get("baseline_codes", [])
+                st.session_state.baseline_success = state_values.get("baseline_success", False)
+
+                # 初始化 graph_state
+                st.session_state.graph_state = {
+                    "messages": [],
+                    "baseline_codes": st.session_state.baseline_codes,
+                    "baseline_success": st.session_state.baseline_success,
+                }
+                st.session_state.helper_ready = True
+                st.session_state.result = result
+                st.session_state.step_status[0] = True
+                # 清除错误消息
+                st.session_state.error_message = None
+                return True
+            return False
+        except Exception as e:
+            st.session_state.error_message = f"基线模型构建失败: {str(e)}"
+            return False
+        finally:
+            st.session_state.running = False
+
+
+async def run_action_builder():
+    """运行特征工程构建器"""
+    run()
+    with st.spinner("正在生成特征工程..."):
+        if not st.session_state.baseline_codes or not st.session_state.baseline_success:
+            st.session_state.error_message = "需要先完成基线模型构建"
+            st.session_state.running = False
+            return False
+
+        try:
+            result = await st.session_state.monitor.start_training(
+                task_type=TaskType.ML.value,
+                config=st.session_state.data_config,
+                code_interpreter=st.session_state.code_interpreter,
+                auto=False,
+                start_builder="action_builder",
+                baseline_codes=st.session_state.baseline_codes,
+            )
+            st.session_state.runned = True
+            if result:
+                # 保存行动构建器的状态
+                state_values = st.session_state.monitor.app.get_state(st.session_state.data_config).values
+                st.session_state.actions = state_values.get("actions", [])
+                st.session_state.action_success = state_values.get("action_success", False)
+
+                # 更新 graph_state
+                if "graph_state" in st.session_state:
+                    st.session_state.graph_state.update(
+                        {
+                            "actions": st.session_state.actions,
+                            "action_success": st.session_state.action_success,
+                        }
+                    )
+                st.session_state.result = result
+                st.session_state.step_status[1] = True
+                # 清除错误消息
+                st.session_state.error_message = None
+                return True
+            return False
+        except Exception as e:
+            st.session_state.error_message = f"行动构建失败: {str(e)}"
+            return False
+        finally:
+            st.session_state.running = False
+
+
+async def run_workflow_builder():
+    """运行工作流构建器"""
+    run()
+    with st.spinner("正在构建工作流..."):
+        if (
+            not st.session_state.baseline_codes
+            or not st.session_state.baseline_success
+            or not st.session_state.actions
+            or not st.session_state.action_success
+        ):
+            st.session_state.error_message = "需要先完成基线模型构建和特征工程"
+            st.session_state.running = False
+            return False
+
+        try:
+            result = await st.session_state.monitor.start_training(
+                task_type=TaskType.ML.value,
+                config=st.session_state.data_config,
+                code_interpreter=st.session_state.code_interpreter,
+                auto=False,
+                start_builder="workflow_builder",
+                baseline_codes=st.session_state.baseline_codes,
+                actions=st.session_state.actions,
+            )
+            st.session_state.runned = True
+            if result:
+                # 保存工作流构建器的状态
+                state_values = st.session_state.monitor.app.get_state(st.session_state.data_config).values
+                st.session_state.workflow_codes = state_values.get("workflow_codes", [])
+                st.session_state.workflow_success = state_values.get("workflow_success", False)
+
+                # 更新 graph_state
+                if "graph_state" in st.session_state:
+                    st.session_state.graph_state.update(
+                        {
+                            "workflow_codes": st.session_state.workflow_codes,
+                            "workflow_success": st.session_state.workflow_success,
+                        }
+                    )
+                st.session_state.result = result
+                st.session_state.step_status[2] = True
+                # 清除错误消息
+                st.session_state.error_message = None
+                return True
+            return False
+        except Exception as e:
+            st.session_state.error_message = f"工作流构建失败: {str(e)}"
+            return False
+        finally:
+            st.session_state.running = False
+
+
+async def run_optimization_builder():
+    """运行优化构建器"""
+    run()
+    with st.spinner("正在进行模型优化..."):
+        if not st.session_state.workflow_codes or not st.session_state.workflow_success:
+            st.session_state.error_message = "需要先完成工作流构建"
+            st.session_state.running = False
+            return False
+
+        try:
+            result = await st.session_state.monitor.start_training(
+                task_type=TaskType.ML.value,
+                config=st.session_state.data_config,
+                code_interpreter=st.session_state.code_interpreter,
+                auto=False,
+                start_builder="optimization_builder",
+                workflow_codes=st.session_state.workflow_codes,
+            )
+
+            st.session_state.runned = True
+            if result:
+                state_values = st.session_state.monitor.app.get_state(st.session_state.data_config).values
+                st.session_state.optimization_codes = state_values.get("optimization_codes", [])
+                st.session_state.optimization_success = state_values.get("optimization_success", False)
+                # 更新 graph_state
+                if "graph_state" in st.session_state:
+                    st.session_state.graph_state.update(
+                        {
+                            "optimization_codes": st.session_state.optimization_codes,
+                            "optimization_success": st.session_state.optimization_success,
+                        }
+                    )
+                st.session_state.result = result
+                st.session_state.step_status[3] = True
+                # 清除错误消息
+                st.session_state.error_message = None
+                return True
+            return False
+        except Exception as e:
+            st.session_state.error_message = f"模型优化失败: {str(e)}"
+            return False
+        finally:
+            st.session_state.running = False

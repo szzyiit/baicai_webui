@@ -2,6 +2,7 @@ import json
 from typing import Dict, List
 
 import streamlit as st
+from baicai_base.services.llms import LLM
 from baicai_base.utils.data import get_tmp_folder
 from baicai_tutor.agents.graphs.tutor_builder import TutorBuilder
 from baicai_tutor.utils import create_config
@@ -10,11 +11,12 @@ from langgraph.types import Command
 
 
 @st.cache_resource
-def create_tutor(config: Dict):
-    return TutorBuilder(config=config, memory=MemorySaver())
+def create_tutor(config: Dict, llm: LLM):
+    return TutorBuilder(config=config, memory=MemorySaver(), llm=llm)
 
 
 def multi_choice_questions(
+    llm: LLM,
     subject: str,
     grade: str,
     background: str,
@@ -114,7 +116,7 @@ def multi_choice_questions(
                     st.session_state.tutor_config = create_config(configs)
                     st.session_state.config_changed = False
 
-                st.session_state.tutor = create_tutor(st.session_state.tutor_config)
+                st.session_state.tutor = create_tutor(st.session_state.tutor_config, llm)
                 with st.spinner("正在生成题目..."):
                     try:
                         # Start from beginning
@@ -201,7 +203,7 @@ def multi_choice_questions(
                                     configs_with_thread_id = create_config(sheet_config)
                                     st.session_state.question_sheets[file.stem] = configs_with_thread_id
 
-                                st.session_state.tutor = create_tutor(configs_with_thread_id)
+                                st.session_state.tutor = create_tutor(configs_with_thread_id, llm)
 
                                 # Start from beginning
                                 # Interrupt the tutor process, wait for user answer

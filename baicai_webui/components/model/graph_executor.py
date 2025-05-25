@@ -11,12 +11,18 @@ from baicai_dev.agents.graphs.workflow_builder import WorkflowBuilder
 from baicai_dev.utils.data import TaskType
 from baicai_dev.utils.setups import create_dl_config
 
+from baicai_webui.components.model.model_config_page import get_page_llm
+
 
 class GraphExecutor:
     """Handles execution of ML and DL graphs"""
 
-    @staticmethod
+    def __init__(self, llm=None):
+        """Initialize GraphExecutor with optional LLM instance"""
+        self.llm = llm
+
     def execute_ml_graph(
+        self,
         config: Dict[str, Any],
         code_interpreter=None,
         auto=False,
@@ -24,7 +30,6 @@ class GraphExecutor:
         baseline_codes=None,
         workflow_codes=None,
         actions=None,
-        llm_params=None,
     ):
         """Execute ML graph with given configuration"""
         # 验证必要参数
@@ -35,24 +40,19 @@ class GraphExecutor:
             raise ValueError(f"缺少必要的配置参数: {', '.join(missing_fields)}")
 
         try:
-            # Create LLM instance with provided parameters or defaults from env
-            llm_instance = None
-            if llm_params:
-                llm_instance = LLM(**llm_params).llm
-
             if auto:
                 graph = MLGraph(
                     config=config,
                     start_builder=start_builder,
                     code_interpreter=code_interpreter,
                     need_helper=True,
-                    llm=llm_instance,
+                    llm=self.llm,
                 )
                 return graph
             else:
                 if start_builder == "baseline_builder":
                     graph = BaselineBuilder(
-                        config=config, need_helper=True, code_interpreter=code_interpreter, llm=llm_instance
+                        config=config, need_helper=True, code_interpreter=code_interpreter, llm=self.llm
                     )
                 elif start_builder == "action_builder":
                     graph = ActionBuilder(
@@ -60,7 +60,7 @@ class GraphExecutor:
                         need_helper=True,
                         code_interpreter=code_interpreter,
                         baseline_codes=baseline_codes,
-                        llm=llm_instance,
+                        llm=self.llm,
                     )
                 elif start_builder == "workflow_builder":
                     graph = WorkflowBuilder(
@@ -69,7 +69,7 @@ class GraphExecutor:
                         code_interpreter=code_interpreter,
                         baseline_codes=baseline_codes,
                         actions=actions,
-                        llm=llm_instance,
+                        llm=self.llm,
                     )
                 elif start_builder == "optimization_builder":
                     graph = OptimizationBuilder(
@@ -77,80 +77,47 @@ class GraphExecutor:
                         need_helper=True,
                         code_interpreter=code_interpreter,
                         workflow_codes=workflow_codes,
-                        llm=llm_instance,
+                        llm=self.llm,
                     )
                 return graph
         except Exception as e:
             raise ValueError(f"配置参数错误: {str(e)}")
 
-    @staticmethod
-    def execute_dl_graph(config: Dict[str, Any], code_interpreter=None, llm_params=None):
+    def execute_dl_graph(self, config: Dict[str, Any], code_interpreter=None):
         """Execute DL graph with given configuration"""
         try:
-            # Create LLM instance with provided parameters or defaults from env
-            llm_instance = None
-            if llm_params:
-                llm_instance = LLM(**llm_params).llm
-
             # 使用create_dl_config创建标准配置
             dl_config = create_dl_config(config)
 
             # 创建DLBuilder并返回其app
-            builder = DLBuilder(config=dl_config, need_helper=True, code_interpreter=code_interpreter, llm=llm_instance)
+            builder = DLBuilder(config=dl_config, need_helper=True, code_interpreter=code_interpreter, llm=self.llm)
             return builder
         except Exception as e:
             raise ValueError(f"配置参数错误: {str(e)}")
 
-    @staticmethod
-    def get_graph_for_task(task_type: str):
+    def get_graph_for_task(self, task_type: str):
         """Get appropriate graph executor for task type"""
         task_map = {
-            TaskType.VISION.value: GraphExecutor.execute_dl_graph,
-            TaskType.VISION_CSV.value: GraphExecutor.execute_dl_graph,
-            TaskType.VISION_FUNC.value: GraphExecutor.execute_dl_graph,
-            TaskType.VISION_RE.value: GraphExecutor.execute_dl_graph,
-            TaskType.VISION_MULTI_LABEL.value: GraphExecutor.execute_dl_graph,
-            TaskType.VISION_SINGLE_LABEL.value: GraphExecutor.execute_dl_graph,
-            TaskType.NLP.value: GraphExecutor.execute_dl_graph,
-            TaskType.COLLABORATIVE.value: GraphExecutor.execute_dl_graph,
-            TaskType.ML.value: GraphExecutor.execute_ml_graph,
-            TaskType.NLP_SENTIMENT_TRAINER.value: GraphExecutor.execute_dl_graph,
-            TaskType.NLP_SENTIMENT_INFERENCE.value: GraphExecutor.execute_dl_graph,
-            TaskType.NLP_NER_INFERENCE.value: GraphExecutor.execute_dl_graph,
-            TaskType.NLP_SEMANTIC_MATCH_INFERENCE.value: GraphExecutor.execute_dl_graph,
+            TaskType.VISION.value: self.execute_dl_graph,
+            TaskType.VISION_CSV.value: self.execute_dl_graph,
+            TaskType.VISION_FUNC.value: self.execute_dl_graph,
+            TaskType.VISION_RE.value: self.execute_dl_graph,
+            TaskType.VISION_MULTI_LABEL.value: self.execute_dl_graph,
+            TaskType.VISION_SINGLE_LABEL.value: self.execute_dl_graph,
+            TaskType.NLP.value: self.execute_dl_graph,
+            TaskType.COLLABORATIVE.value: self.execute_dl_graph,
+            TaskType.ML.value: self.execute_ml_graph,
+            TaskType.NLP_SENTIMENT_TRAINER.value: self.execute_dl_graph,
+            TaskType.NLP_SENTIMENT_INFERENCE.value: self.execute_dl_graph,
+            TaskType.NLP_NER_INFERENCE.value: self.execute_dl_graph,
+            TaskType.NLP_SEMANTIC_MATCH_INFERENCE.value: self.execute_dl_graph,
         }
 
         return task_map.get(task_type)
 
-    @staticmethod
-    def get_llm_params():
-        """Get LLM parameters from environment variables"""
-        import os
 
-        # Check if environment variables are set
-        provider = os.environ.get("LLM_PROVIDER")
-        if not provider:
-            return None
-
-        llm_params = {
-            "provider": provider,
-            "model_name": os.environ.get("LLM_MODEL_NAME"),
-            "base_url": os.environ.get("LLM_BASE_URL"),
-        }
-
-        # Add temperature if available
-        temp_str = os.environ.get("LLM_TEMPERATURE")
-        if temp_str:
-            try:
-                llm_params["temperature"] = float(temp_str)
-            except (ValueError, TypeError):
-                pass
-
-        return llm_params
-
-
-def create_graph_executor():
+def create_graph_executor(llm=None):
     """Create or get graph executor from session state"""
     if "graph_executor" not in st.session_state:
-        st.session_state.graph_executor = GraphExecutor()
+        st.session_state.graph_executor = GraphExecutor(llm=llm)
     return st.session_state.graph_executor

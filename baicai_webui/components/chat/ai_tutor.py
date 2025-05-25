@@ -3,11 +3,24 @@
 import asyncio
 
 import streamlit as st
-
 from baicai_tutor.agents.roles import concept_explainer, hinter
+
+from baicai_webui.components.model import get_page_llm
 
 
 def create_ai_tutor(from_level: int = 1, terms: list[str] = None, debug: bool = False) -> None:
+    """
+    Create an AI tutor interface for the user to interact with.
+
+    Args:
+        from_level: The level of the tutor to create.
+        terms: A list of terms to use for the tutor.
+    """
+    llm = get_page_llm(
+        config_id="tutor",
+        title="问答模型配置",
+        info_text="配置用于问答功能的模型参数",
+    )
     # 初始化聊天历史
     if "tutor_messages" not in st.session_state:
         st.session_state.tutor_messages = []
@@ -75,7 +88,7 @@ def create_ai_tutor(from_level: int = 1, terms: list[str] = None, debug: bool = 
                 full_response = ""
 
                 # Get the chain
-                chain = concept_explainer() if from_level == 1 else hinter()
+                chain = concept_explainer(llm) if from_level == 1 else hinter(llm)
 
                 # Stream the response
                 async for chunk in chain.astream({"messages": [user_message]}):
