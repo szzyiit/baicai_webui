@@ -100,7 +100,7 @@ def restart():
 def _init_session_state():
     # Initialize LLM with the new configuration method
     llm = get_page_llm(
-        config_id="ml_llm", title="机器学习模型配置", info_text="配置用于机器学习任务的模型参数", expanded=True
+        config_id="ml_llm", title="机器学习模型配置", info_text="配置用于机器学习任务的模型参数", expanded=False
     )
 
     # 训练监控
@@ -601,3 +601,6 @@ async def run_optimization_builder():
             return False
         finally:
             st.session_state.running = False
+
+
+show()

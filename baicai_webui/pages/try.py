@@ -172,3 +172,5 @@ def show():
     # try_tabular_shap()
     # try_button_graph()
     try_model_settings()
+
+show()

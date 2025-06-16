@@ -156,3 +156,4 @@ cython_debug/
 .vscode/
 
 thoughts.md
+.DS_Store

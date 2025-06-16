@@ -7,3 +7,6 @@ def show():
     st.title("大模型配置")
 
     render_model_settings()
+
+
+show()

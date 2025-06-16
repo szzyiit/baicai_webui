@@ -43,7 +43,6 @@ def load_env_file(env_path):
 
 
 def render_model_settings():
-    st.title("大模型设置")
 
     # Initialize config manager
     config_manager = ConfigManager()
@@ -52,7 +51,7 @@ def render_model_settings():
     available_configs = config_manager.list_configs()
 
     # Create tabs for different configuration types
-    tab1, tab2, tab3 = st.tabs(["API密钥管理", "全局设置", "特定设置"])
+    tab1, tab2, tab3 = st.tabs(["API密钥管理", "全局模型设置", "特定模型设置"])
 
     with tab1:
         st.subheader("API密钥管理")

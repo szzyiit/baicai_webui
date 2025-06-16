@@ -8,3 +8,5 @@ def show():
     """显示协同过滤任务页面"""
     page = BasePage(TaskType.COLLABORATIVE, collab_uploader)
     page.show()
+
+show()

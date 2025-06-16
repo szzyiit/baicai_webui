@@ -16,3 +16,5 @@ def show():
     # Example:
     # response = llm.invoke("你好")
     # st.write(response)
+
+show()

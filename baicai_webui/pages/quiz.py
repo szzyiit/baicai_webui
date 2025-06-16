@@ -76,3 +76,5 @@ def show():
         else:
             level = 3
         show_right_sidebar(from_level=level, terms=st.session_state.keywords)
+
+show()

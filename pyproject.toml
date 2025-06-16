@@ -13,15 +13,14 @@ baicai-base = { path = "../baicai_base", develop = true }
 streamlit = ">=1.43.0,<2.0.0"
 streamlit-mermaid = ">=0.3.0,<0.4.0"
 streamlit-flow-component = ">=1.6.1,<2.0.0"
-
-[tool.poetry.group.dev]
-optional = true
-
-[tool.poetry.group.dev.dependencies]
 baicai-dev = { path = "../baicai_dev", develop = true }
 
+[tool.poetry.group.dev]
+
+[tool.poetry.group.dev.dependencies]
+watchdog = "^6.0.0"
+
 [tool.poetry.group.tutor]
-optional = true
 
 [tool.poetry.group.tutor.dependencies]
 baicai-tutor = { path = "../baicai_tutor", develop = true }

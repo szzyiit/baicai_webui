@@ -8,3 +8,5 @@ def show():
     """显示自然语言处理任务页面"""
     page = BasePage(TaskType.NLP, nlp_uploader)
     page.show()
+
+show()
