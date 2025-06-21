@@ -118,7 +118,7 @@ def _init_session_state():
 
     # 初始化运行模式
     if "run_mode" not in st.session_state:
-        st.session_state.run_mode = "auto"
+        st.session_state.run_mode = "manual"
 
     if "baseline_codes" not in st.session_state:
         st.session_state.baseline_codes = None
@@ -152,7 +152,7 @@ def show():
     """
     monitor = _init_session_state()
 
-    st.title("机器学习训练")
+    st.title("传统机器学习")
 
     # 创建选项卡
     tab1, tab2, tab3, tab4 = st.tabs(["🤖 智能体配置", "📈结果查看", "🔍 模型解释", "💬 AI助手"])

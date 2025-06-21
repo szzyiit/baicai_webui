@@ -303,6 +303,6 @@ except Exception as e:
 def show():
     """显示计算机视觉任务页面"""
     page = BasePage(TaskType.VISION, vision_uploader)
-    page.show(pre_train=pre_train, post_train=post_train)
+    page.show(pre_train=pre_train, post_train=post_train, title="计算机视觉")
 
 show()

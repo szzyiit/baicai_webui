@@ -110,120 +110,120 @@ def configure_metrics_ui(df, target_col=None, default_is_classification=None, co
             format="%.4f",
         )
 
-    st.subheader("高级设置")
-    # 有序分类数据
-    ordinal_features_config = config_data.get("ordinal_features", [])
-    # 从配置中提取特征名称列表
-    ordinal_feature_names = []
-    for feature_dict in ordinal_features_config:
-        # Each item is a dict with a single key (feature name)
-        if feature_dict:  # Skip empty dicts
-            ordinal_feature_names.extend(feature_dict.keys())
-
-    ordinal_features = st.multiselect("🔍 选择有序分类数据", cols, default=ordinal_feature_names)
-
-    # 为每个有序特征设置类别顺序
-    ordinal_categories = {}
-    if ordinal_features:
-        st.write("📊 设置有序特征的类别顺序")
-        st.info("请为每个有序特征指定类别的顺序，类别之间用逗号分隔")
-
-        # 创建字典来存储配置中的顺序信息
-        config_orders = {}
+    with st.expander("⚙️ 高级设置", expanded=False):
+        # 有序分类数据
+        ordinal_features_config = config_data.get("ordinal_features", [])
+        # 从配置中提取特征名称列表
+        ordinal_feature_names = []
         for feature_dict in ordinal_features_config:
-            for feature, order in feature_dict.items():
-                config_orders[feature] = order
+            # Each item is a dict with a single key (feature name)
+            if feature_dict:  # Skip empty dicts
+                ordinal_feature_names.extend(feature_dict.keys())
 
-        for feature in ordinal_features:
-            # 获取该特征的唯一值
-            unique_values = df[feature].unique().tolist()
-            if len(unique_values) > 10:
-                st.warning(f"🚨 {feature} 可能不是分类特征，不作为有序特征处理")
-                continue
+        ordinal_features = st.multiselect("🔍 选择有序分类数据", cols, default=ordinal_feature_names)
 
-            # 如果配置中有该特征的顺序，使用它作为默认值，否则使用数据中的唯一值
-            if feature in config_orders:
-                default_order = ", ".join(map(str, config_orders[feature]))
+        # 为每个有序特征设置类别顺序
+        ordinal_categories = {}
+        if ordinal_features:
+            st.write("📊 设置有序特征的类别顺序")
+            st.info("请为每个有序特征指定类别的顺序，类别之间用逗号分隔")
+
+            # 创建字典来存储配置中的顺序信息
+            config_orders = {}
+            for feature_dict in ordinal_features_config:
+                for feature, order in feature_dict.items():
+                    config_orders[feature] = order
+
+            for feature in ordinal_features:
+                # 获取该特征的唯一值
+                unique_values = df[feature].unique().tolist()
+                if len(unique_values) > 10:
+                    st.warning(f"🚨 {feature} 可能不是分类特征，不作为有序特征处理")
+                    continue
+
+                # 如果配置中有该特征的顺序，使用它作为默认值，否则使用数据中的唯一值
+                if feature in config_orders:
+                    default_order = ", ".join(map(str, config_orders[feature]))
+                else:
+                    default_order = ", ".join(map(str, unique_values))
+
+                # 获取用户输入的顺序
+                order_input = st.text_input(
+                    f"📝 {feature} 的类别顺序",
+                    value=default_order,
+                    help=f"当前所有值: {', '.join(map(str, unique_values))}",
+                )
+
+                # 解析输入的顺序
+                if order_input:
+                    order = [item.strip() for item in order_input.split(",")]
+                    ordinal_categories[feature] = order
+
+                    # 显示预览效果
+                    st.info(f"✅ {feature} 的类别顺序已设置为: {order}")
+
+        # 将ordinal_categories转换为模型代码期望的格式：[{feature1: [order1]}, {feature2: [order2]}]
+        ordinal_categories_list = []
+        for feature, order in ordinal_categories.items():
+            ordinal_categories_list.append({feature: order})
+
+        # 想要解析时间的列
+        date_feature = config_data.get("date_feature") if config_data.get("date_feature") != "" else cols[1]
+        date_options = ["不选择"] + cols
+        date_index = cols.index(date_feature) + 1 if date_feature in cols else 0
+        date_feature = st.selectbox("🕒 选择需要解析日期时间的列", date_options, index=0)
+        date_feature = "" if date_feature == "不选择" else date_feature
+
+        if date_feature != "":
+            need_time = st.radio("🕒 是否需要解析时间", ["✅ 是", "❌ 否"], index=1, horizontal=True) == "✅ 是"
+
+            # 选择按照日期时间分割的阈值
+            if "need_time" in locals() and need_time:
+                date_col = st.columns(1)[0]
+                threshold_date = date_col.date_input(
+                    "🕒 选择按照日期分割的阈值日期", value=pd.Timestamp("2015-09-01").date()
+                )
+
+                time_cols = st.columns(3)
+                threshold_hour = time_cols[0].number_input("小时", min_value=0, max_value=23, value=0, step=1)
+                threshold_minute = time_cols[1].number_input("分钟", min_value=0, max_value=59, value=0, step=1)
+                threshold_second = time_cols[2].number_input("秒", min_value=0, max_value=59, value=0, step=1)
+
+                # 合并日期和时间
+                threshold = pd.Timestamp(
+                    year=threshold_date.year,
+                    month=threshold_date.month,
+                    day=threshold_date.day,
+                    hour=threshold_hour,
+                    minute=threshold_minute,
+                    second=threshold_second,
+                )
+
+                # 将Timestamp转换为字典格式
+                threshold_dict = {
+                    "year": threshold_date.year,
+                    "month": threshold_date.month,
+                    "day": threshold_date.day,
+                    "hour": threshold_hour,
+                    "minute": threshold_minute,
+                    "second": threshold_second,
+                }
             else:
-                default_order = ", ".join(map(str, unique_values))
+                threshold = st.date_input("🕒 选择按照日期时间分割的阈值", value=pd.Timestamp("2015-09-01"))
 
-            # 获取用户输入的顺序
-            order_input = st.text_input(
-                f"📝 {feature} 的类别顺序",
-                value=default_order,
-                help=f"当前所有值: {', '.join(map(str, unique_values))}",
-            )
+                # 将date转换为字典格式
+                threshold_dict = {
+                    "year": threshold.year,
+                    "month": threshold.month,
+                    "day": threshold.day,
+                }
 
-            # 解析输入的顺序
-            if order_input:
-                order = [item.strip() for item in order_input.split(",")]
-                ordinal_categories[feature] = order
-
-                # 显示预览效果
-                st.info(f"✅ {feature} 的类别顺序已设置为: {order}")
-
-    # 将ordinal_categories转换为模型代码期望的格式：[{feature1: [order1]}, {feature2: [order2]}]
-    ordinal_categories_list = []
-    for feature, order in ordinal_categories.items():
-        ordinal_categories_list.append({feature: order})
-
-    # 想要解析时间的列
-    date_feature = config_data.get("date_feature") if config_data.get("date_feature") != "" else cols[1]
-    date_options = ["不选择"] + cols
-    date_index = cols.index(date_feature) + 1 if date_feature in cols else 0
-    date_feature = st.selectbox("🕒 选择需要解析日期时间的列", date_options, index=0)
-    date_feature = "" if date_feature == "不选择" else date_feature
-
-    if date_feature != "":
-        need_time = st.radio("🕒 是否需要解析时间", ["✅ 是", "❌ 否"], index=1, horizontal=True) == "✅ 是"
-
-        # 选择按照日期时间分割的阈值
-        if "need_time" in locals() and need_time:
-            date_col = st.columns(1)[0]
-            threshold_date = date_col.date_input(
-                "🕒 选择按照日期分割的阈值日期", value=pd.Timestamp("2015-09-01").date()
-            )
-
-            time_cols = st.columns(3)
-            threshold_hour = time_cols[0].number_input("小时", min_value=0, max_value=23, value=0, step=1)
-            threshold_minute = time_cols[1].number_input("分钟", min_value=0, max_value=59, value=0, step=1)
-            threshold_second = time_cols[2].number_input("秒", min_value=0, max_value=59, value=0, step=1)
-
-            # 合并日期和时间
-            threshold = pd.Timestamp(
-                year=threshold_date.year,
-                month=threshold_date.month,
-                day=threshold_date.day,
-                hour=threshold_hour,
-                minute=threshold_minute,
-                second=threshold_second,
-            )
-
-            # 将Timestamp转换为字典格式
-            threshold_dict = {
-                "year": threshold_date.year,
-                "month": threshold_date.month,
-                "day": threshold_date.day,
-                "hour": threshold_hour,
-                "minute": threshold_minute,
-                "second": threshold_second,
-            }
-        else:
-            threshold = st.date_input("🕒 选择按照日期时间分割的阈值", value=pd.Timestamp("2015-09-01"))
-
-            # 将date转换为字典格式
-            threshold_dict = {
-                "year": threshold.year,
-                "month": threshold.month,
-                "day": threshold.day,
-            }
-
-    # 选择是否为时序数据
-    is_time_series = st.radio("🕒 是否为时序问题", ["✅ 是", "❌ 否"], index=1, horizontal=True) == "✅ 是"
-    if is_time_series:
-        if date_feature == "":
-            st.error("🚨 请选择需要解析日期时间的列")
-            return
+        # 选择是否为时序数据
+        is_time_series = st.radio("🕒 是否为时序问题", ["✅ 是", "❌ 否"], index=1, horizontal=True) == "✅ 是"
+        if is_time_series:
+            if date_feature == "":
+                st.error("🚨 请选择需要解析日期时间的列")
+                return
 
     return (
         name,
@@ -315,86 +315,85 @@ def vision_uploader() -> Dict[str, Any]:
         selected_dataset = st.selectbox("🔍 选择示例数据集", list(vision_configs.keys()))
         default_config = vision_configs[selected_dataset]
 
-        with st.expander("数据集配置（可调整）", expanded=True):
-            # 显示数据集基本信息
-            st.write(f"数据集: {default_config['name']}")
-            st.write(f"数据路径: {default_config['path']}")
-            st.write(f"任务类型: {default_config['task_type']}")
+        # 显示数据集基本信息
+        st.write(f"数据集: {default_config['name']}")
+        st.write(f"数据路径: {default_config['path']}")
+        st.write(f"任务类型: {default_config['task_type']}")
 
-            # 基础配置
-            batch_size = st.number_input("批次大小", 1, 128, default_config["batch_size"])
-            model = st.selectbox(
-                "模型",
-                ["resnet18", "resnet34", "resnet50"],
-                index=["resnet18", "resnet34", "resnet50"].index(default_config["model"]),
-            )
-            valid_pct = st.slider("验证集比例", 0.0, 0.5, default_config["valid_pct"])
-            num_workers = st.number_input("数据加载线程数", 0, 16, default_config["num_workers"])
-            size = st.number_input("图片大小", 16, 256, default_config["size"])
+        # 基础配置
+        batch_size = st.number_input("批次大小", 1, 128, default_config["batch_size"])
+        model = st.selectbox(
+            "模型",
+            ["resnet18", "resnet34", "resnet50"],
+            index=["resnet18", "resnet34", "resnet50"].index(default_config["model"]),
+        )
+        valid_pct = st.slider("验证集比例", 0.0, 0.5, default_config["valid_pct"])
+        num_workers = st.number_input("数据加载线程数", 0, 16, default_config["num_workers"])
+        size = st.number_input("图片大小", 16, 256, default_config["size"])
 
-            # 根据任务类型显示不同的配置选项
-            if default_config["task_type"] == TaskType.VISION_CSV.value:
-                folder = st.text_input("数据集文件夹", value=default_config.get("folder", None))
-                csv_file = st.text_input("CSV文件名", value=default_config["csv_file"])
-                image_col = st.text_input("图片列名", value=default_config["image_col"])
-                label_col = st.text_input("标签列名", value=default_config["label_col"])
-                valid_col = st.text_input("验证集列名", value=default_config.get("valid_col", None))
-                delimiter = st.text_input("分隔符", value=default_config.get("delimiter", None))
-                label_delim = st.text_input("标签分隔符", value=default_config.get("label_delim", None))
-                extra_config = {
-                    "folder": folder,
-                    "csv_file": csv_file,
-                    "image_col": image_col,
-                    "label_col": label_col,
-                    "valid_col": valid_col,
-                    "delimiter": delimiter,
-                    "label_delim": label_delim,
-                }
-            elif default_config["task_type"] == TaskType.VISION_FUNC.value:
-                label_func = st.text_input("标注函数", value=default_config["label_func"])
-                extra_config = {"label_func": label_func}
-            elif default_config["task_type"] == TaskType.VISION_RE.value:
-                pat = st.text_input("标注正则表达式", value=default_config["pat"])
-                extra_config = {"pat": pat}
-            elif default_config["task_type"] == TaskType.VISION_MULTI_LABEL.value:
-                folder = st.text_input("数据集文件夹", value=default_config.get("folder", None))
-                csv_file = st.text_input("CSV文件名", value=default_config["csv_file"])
-                image_col = st.text_input("图片列名", value=default_config["image_col"])
-                label_col = st.text_input("标签列名", value=default_config["label_col"])
-                valid_col = st.text_input("验证集列名", value=default_config.get("valid_col", None))
-                delimiter = st.text_input("分隔符", value=default_config.get("delimiter", None))
-                label_delim = st.text_input("标签分隔符", value=default_config.get("label_delim", None))
-                extra_config = {
-                    "folder": folder,
-                    "csv_file": csv_file,
-                    "image_col": image_col,
-                    "label_col": label_col,
-                    "valid_col": valid_col,
-                    "delimiter": delimiter,
-                    "label_delim": label_delim,
-                }
-            else:  # VISION_SINGLE_LABEL
-                train_folder = st.text_input("训练集文件夹", value=default_config.get("train_folder", None))
-                valid_folder = st.text_input("验证集文件夹", value=default_config.get("valid_folder", None))
-                extra_config = {
-                    "train_folder": train_folder,
-                    "valid_folder": valid_folder,
-                }
-
-            # 创建配置数据
-            config_data = {
-                "path": default_config["path"],
-                "name": default_config["name"],
-                "task_type": default_config["task_type"],
-                "batch_size": batch_size,
-                "model": model,
-                "valid_pct": valid_pct,
-                "num_workers": num_workers,
-                "device": "cuda" if torch.cuda.is_available() else "cpu",
-                "size": size,
-                **extra_config,
+        # 根据任务类型显示不同的配置选项
+        if default_config["task_type"] == TaskType.VISION_CSV.value:
+            folder = st.text_input("数据集文件夹", value=default_config.get("folder", None))
+            csv_file = st.text_input("CSV文件名", value=default_config["csv_file"])
+            image_col = st.text_input("图片列名", value=default_config["image_col"])
+            label_col = st.text_input("标签列名", value=default_config["label_col"])
+            valid_col = st.text_input("验证集列名", value=default_config.get("valid_col", None))
+            delimiter = st.text_input("分隔符", value=default_config.get("delimiter", None))
+            label_delim = st.text_input("标签分隔符", value=default_config.get("label_delim", None))
+            extra_config = {
+                "folder": folder,
+                "csv_file": csv_file,
+                "image_col": image_col,
+                "label_col": label_col,
+                "valid_col": valid_col,
+                "delimiter": delimiter,
+                "label_delim": label_delim,
             }
-            return create_dl_config(config_data)
+        elif default_config["task_type"] == TaskType.VISION_FUNC.value:
+            label_func = st.text_input("标注函数", value=default_config["label_func"])
+            extra_config = {"label_func": label_func}
+        elif default_config["task_type"] == TaskType.VISION_RE.value:
+            pat = st.text_input("标注正则表达式", value=default_config["pat"])
+            extra_config = {"pat": pat}
+        elif default_config["task_type"] == TaskType.VISION_MULTI_LABEL.value:
+            folder = st.text_input("数据集文件夹", value=default_config.get("folder", None))
+            csv_file = st.text_input("CSV文件名", value=default_config["csv_file"])
+            image_col = st.text_input("图片列名", value=default_config["image_col"])
+            label_col = st.text_input("标签列名", value=default_config["label_col"])
+            valid_col = st.text_input("验证集列名", value=default_config.get("valid_col", None))
+            delimiter = st.text_input("分隔符", value=default_config.get("delimiter", None))
+            label_delim = st.text_input("标签分隔符", value=default_config.get("label_delim", None))
+            extra_config = {
+                "folder": folder,
+                "csv_file": csv_file,
+                "image_col": image_col,
+                "label_col": label_col,
+                "valid_col": valid_col,
+                "delimiter": delimiter,
+                "label_delim": label_delim,
+            }
+        else:  # VISION_SINGLE_LABEL
+            train_folder = st.text_input("训练集文件夹", value=default_config.get("train_folder", None))
+            valid_folder = st.text_input("验证集文件夹", value=default_config.get("valid_folder", None))
+            extra_config = {
+                "train_folder": train_folder,
+                "valid_folder": valid_folder,
+            }
+
+        # 创建配置数据
+        config_data = {
+            "path": default_config["path"],
+            "name": default_config["name"],
+            "task_type": default_config["task_type"],
+            "batch_size": batch_size,
+            "model": model,
+            "valid_pct": valid_pct,
+            "num_workers": num_workers,
+            "device": "cuda" if torch.cuda.is_available() else "cpu",
+            "size": size,
+            **extra_config,
+        }
+        return create_dl_config(config_data)
 
     return {}
 
@@ -491,53 +490,52 @@ def nlp_uploader() -> Dict[str, Any]:
         selected_dataset = st.selectbox("选择示例数据集", list(nlp_configs.keys()))
         default_config = nlp_configs[selected_dataset]
 
-        with st.expander("⚙️ 数据集默认配置（可调整）", expanded=True):
-            # 显示任务类型
-            st.write(f"任务类型: {default_config['task_type']}")
+        # 显示任务类型
+        st.write(f"任务类型: {default_config['task_type']}")
 
-            if "path" in default_config:  # 训练任务
-                st.write(f"数据路径: {default_config['path']}")
-                text_column = st.text_input("文本列名", value=default_config.get("text_column", ""))
-                label_column = st.text_input("标签列名", value=default_config.get("label_column", ""))
-                num_labels = st.number_input("类别数量", 2, 100, default_config.get("num_labels", 2))
-                num_epochs = st.number_input("训练轮数", 1, 100, default_config.get("num_epochs", 1))
+        if "path" in default_config:  # 训练任务
+            st.write(f"数据路径: {default_config['path']}")
+            text_column = st.text_input("文本列名", value=default_config.get("text_column", ""))
+            label_column = st.text_input("标签列名", value=default_config.get("label_column", ""))
+            num_labels = st.number_input("类别数量", 2, 100, default_config.get("num_labels", 2))
+            num_epochs = st.number_input("训练轮数", 1, 100, default_config.get("num_epochs", 1))
 
-                # 创建配置数据
+            # 创建配置数据
+            config_data = {
+                "path": default_config["path"],
+                "name": default_config.get("name", selected_dataset),
+                "task_type": default_config["task_type"],  # 使用预设的任务类型
+                "model": default_config.get("model", "bert-base-chinese"),
+                "batch_size": default_config.get("batch_size", 32),
+                "num_epochs": num_epochs,
+                "text_column": text_column,
+                "label_column": label_column,
+                "num_labels": num_labels,
+            }
+
+            if "label_mapping" in default_config:
+                config_data["label_mapping"] = default_config["label_mapping"]
+
+            return create_dl_config(config_data)
+
+        else:  # 推理任务
+            if "input" in default_config:
+                input_text = st.text_input("输入文本", value=default_config["input"])
                 config_data = {
-                    "path": default_config["path"],
-                    "name": default_config.get("name", selected_dataset),
                     "task_type": default_config["task_type"],  # 使用预设的任务类型
                     "model": default_config.get("model", "bert-base-chinese"),
-                    "batch_size": default_config.get("batch_size", 32),
-                    "num_epochs": num_epochs,
-                    "text_column": text_column,
-                    "label_column": label_column,
-                    "num_labels": num_labels,
+                    "input": input_text,
                 }
-
-                if "label_mapping" in default_config:
-                    config_data["label_mapping"] = default_config["label_mapping"]
-
-                return create_dl_config(config_data)
-
-            else:  # 推理任务
-                if "input" in default_config:
-                    input_text = st.text_input("输入文本", value=default_config["input"])
-                    config_data = {
-                        "task_type": default_config["task_type"],  # 使用预设的任务类型
-                        "model": default_config.get("model", "bert-base-chinese"),
-                        "input": input_text,
-                    }
-                elif "input1" in default_config:
-                    input1 = st.text_input("输入文本1", value=default_config["input1"])
-                    input2 = st.text_input("输入文本2", value=default_config["input2"])
-                    config_data = {
-                        "task_type": default_config["task_type"],  # 使用预设的任务类型
-                        "model": default_config.get("model", "bert-base-chinese"),
-                        "input1": input1,
-                        "input2": input2,
-                    }
-                return create_dl_config(config_data)
+            elif "input1" in default_config:
+                input1 = st.text_input("输入文本1", value=default_config["input1"])
+                input2 = st.text_input("输入文本2", value=default_config["input2"])
+                config_data = {
+                    "task_type": default_config["task_type"],  # 使用预设的任务类型
+                    "model": default_config.get("model", "bert-base-chinese"),
+                    "input1": input1,
+                    "input2": input2,
+                }
+            return create_dl_config(config_data)
 
     return {}
 
@@ -580,34 +578,33 @@ def collab_uploader() -> Dict[str, Any]:
     else:  # 示例数据集
         default_config = collab_config
 
-        with st.expander("数据集配置（可调整）", expanded=True):
-            # 显示数据集信息
-            st.write(f"任务类型: {default_config['task_type']}")
-            st.write(f"数据路径: {default_config['path']}")
+        # 显示数据集信息
+        st.write(f"任务类型: {default_config['task_type']}")
+        st.write(f"数据路径: {default_config['path']}")
 
-            # 可调整的配置
-            user_name = st.text_input("用户列名", value=default_config["user_name"])
-            item_name = st.text_input("物品列名", value=default_config["item_name"])
-            rating_name = st.text_input("评分列名", value=default_config["rating_name"])
-            valid_pct = st.slider("验证集比例", 0.0, 0.5, default_config["valid_pct"])
-            y_range = st.slider("评分范围", 0.0, 10.0, (default_config["y_range_min"], default_config["y_range_max"]))
+        # 可调整的配置
+        user_name = st.text_input("用户列名", value=default_config["user_name"])
+        item_name = st.text_input("物品列名", value=default_config["item_name"])
+        rating_name = st.text_input("评分列名", value=default_config["rating_name"])
+        valid_pct = st.slider("验证集比例", 0.0, 0.5, default_config["valid_pct"])
+        y_range = st.slider("评分范围", 0.0, 10.0, (default_config["y_range_min"], default_config["y_range_max"]))
 
-            # 创建配置数据
-            config_data = {
-                "path": default_config["path"],
-                "name": "MovieLens",
-                "task_type": TaskType.COLLABORATIVE.value,
-                "model": default_config.get("model", "collaborative_filtering"),
-                "batch_size": default_config.get("batch_size", 32),
-                "num_epochs": default_config.get("num_epochs", 3),
-                "user_name": user_name,
-                "item_name": item_name,
-                "rating_name": rating_name,
-                "valid_pct": valid_pct,
-                "y_range_min": y_range[0],
-                "y_range_max": y_range[1],
-            }
-            return create_dl_config(config_data)
+        # 创建配置数据
+        config_data = {
+            "path": default_config["path"],
+            "name": "MovieLens",
+            "task_type": TaskType.COLLABORATIVE.value,
+            "model": default_config.get("model", "collaborative_filtering"),
+            "batch_size": default_config.get("batch_size", 32),
+            "num_epochs": default_config.get("num_epochs", 3),
+            "user_name": user_name,
+            "item_name": item_name,
+            "rating_name": rating_name,
+            "valid_pct": valid_pct,
+            "y_range_min": y_range[0],
+            "y_range_max": y_range[1],
+        }
+        return create_dl_config(config_data)
 
     return {}
 
@@ -785,25 +782,24 @@ def ml_uploader() -> Dict[str, Any]:
             df = load_example_data(selected_dataset)
             st.dataframe(df.head())
 
-            with st.expander("⚙️ 数据集默认配置", expanded=True):
-                # 配置任务类型和评价指标，使用已有配置作为默认值
-                (
-                    name,
-                    domain,
-                    domain_context,
-                    target_col,
-                    ignore_cols,
-                    is_classification,
-                    is_time_series,
-                    selected_metric,
-                    goal,
-                    ordinal_categories_list,
-                    date_feature,
-                    need_time,
-                    threshold,
-                ) = configure_metrics_ui(
-                    df, None, config_data.get("classification"), config_data, config_data.get("name")
-                )
+            # 配置任务类型和评价指标，使用已有配置作为默认值
+            (
+                name,
+                domain,
+                domain_context,
+                target_col,
+                ignore_cols,
+                is_classification,
+                is_time_series,
+                selected_metric,
+                goal,
+                ordinal_categories_list,
+                date_feature,
+                need_time,
+                threshold,
+            ) = configure_metrics_ui(
+                df, None, config_data.get("classification"), config_data, config_data.get("name")
+            )
 
             # 创建配置数据
             config_data = {

@@ -45,9 +45,9 @@ class BasePage:
                 "dl_success": False,
             }
 
-    def show(self, pre_train=None, post_train=None):
+    def show(self, pre_train=None, post_train=None, title=None):
         """Display the page with common structure"""
-        st.title(f"{self.task_type.value}训练")
+        st.title(f"{title or self.task_type.value}")
 
         # Create tabs
         tab1, tab2, tab3 = st.tabs(["🤖 智能体配置", "📈结果查看", "💬 AI助手"])

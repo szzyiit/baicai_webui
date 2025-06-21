@@ -7,6 +7,6 @@ from baicai_webui.components.model import collab_uploader
 def show():
     """显示协同过滤任务页面"""
     page = BasePage(TaskType.COLLABORATIVE, collab_uploader)
-    page.show()
+    page.show(title="协同过滤")
 
 show()
