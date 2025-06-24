@@ -246,7 +246,7 @@ def vision_uploader() -> Dict[str, Any]:
     """视觉基础设置组件"""
     st.subheader("基础设置")
 
-    upload_type = st.radio("选择上传方式", ["📁 文件夹上传", "📄 CSV文件上传", "💾 示例数据集"])
+    upload_type = st.radio("选择上传方式", ["📁 文件夹上传", "💾 示例数据集"])
 
     if upload_type == "📁 文件夹上传":
         st.info("📂 请选择包含图片的文件夹，每个子文件夹名为类别名")
@@ -254,51 +254,27 @@ def vision_uploader() -> Dict[str, Any]:
         valid_path = st.text_input("🔍 验证数据路径（可选）")
 
         if train_path:
+            # 基础配置
+            st.subheader("模型配置")
+            batch_size = st.number_input("批次大小", 1, 128, 4)
+            model = st.selectbox("模型", ["resnet18", "resnet34", "resnet50"], index=0)
+            valid_pct = st.slider("验证集比例", 0.0, 0.5, 0.2)
+            num_workers = st.number_input("数据加载线程数", 0, 16, 4)
+            size = st.number_input("图片大小", 16, 256, 128)
+
             # 创建配置数据
             config_data = {
                 "path": train_path,
                 "valid_path": valid_path,
                 "name": Path(train_path).name,
                 "task_type": TaskType.VISION_SINGLE_LABEL.value,
-                "model": "resnet18",
-                "batch_size": 32,
-                "valid_pct": 0.2,
-                "num_workers": 4,
+                "model": model,
+                "batch_size": batch_size,
+                "valid_pct": valid_pct,
+                "num_workers": num_workers,
+                "size": size,
                 "train_folder": None,
                 "valid_folder": None,
-                "device": "cuda" if torch.cuda.is_available() else "cpu",
-            }
-            return create_dl_config(config_data)
-
-    elif upload_type == "📄 CSV文件上传":
-        st.info("📋 请上传包含图片路径和标签的CSV文件")
-        csv_file = st.file_uploader("📎 上传CSV文件", type=["csv"])
-
-        if csv_file:
-            df = pd.read_csv(csv_file)
-            st.dataframe(df.head())
-
-            cols = df.columns.tolist()
-            image_col = st.selectbox("选择图片路径列", cols)
-            label_col = st.selectbox("选择标签列", cols)
-            valid_col = st.selectbox("选择验证集列（可选）", [None] + cols)
-
-            # 创建配置数据
-            config_data = {
-                "path": str(csv_file),
-                "name": csv_file.name.split(".")[0],
-                "task_type": TaskType.VISION_CSV.value,
-                "model": "resnet18",
-                "batch_size": 32,
-                "valid_pct": 0.2,
-                "num_workers": 4,
-                "folder": None,
-                "csv_file": csv_file.name,
-                "image_col": image_col,
-                "label_col": label_col,
-                "valid_col": valid_col,
-                "delimiter": None,
-                "label_delim": None,
                 "device": "cuda" if torch.cuda.is_available() else "cpu",
             }
             return create_dl_config(config_data)
@@ -402,51 +378,9 @@ def nlp_uploader() -> Dict[str, Any]:
     """NLP基础设置组件"""
     st.subheader("基础设置")
 
-    upload_type = st.radio("选择上传方式", ["📄 CSV文件上传", "📝 文本文件上传", "💾 示例数据集"])
+    upload_type = st.radio("选择上传方式", ["📝 文本文件上传", "💾 示例数据集"])
 
-    if upload_type == "📄 CSV文件上传":
-        csv_file = st.file_uploader("上传CSV文件", type=["csv"])
-
-        if csv_file:
-            df = pd.read_csv(csv_file)
-            st.dataframe(df.head())
-
-            cols = df.columns.tolist()
-            text_col = st.selectbox("选择文本列", cols)
-            label_col = st.selectbox("选择标签列", cols)
-
-            # 选择具体的NLP任务类型
-            task_subtype = st.selectbox(
-                "选择具体的NLP任务类型",
-                [
-                    "情感分析",
-                    "命名实体识别",
-                    "语义匹配",
-                ],
-            )
-
-            # 根据选择设置任务类型
-            task_type_map = {
-                "情感分析": TaskType.NLP_SENTIMENT_TRAINER.value,
-                "命名实体识别": TaskType.NLP_NER_INFERENCE.value,
-                "语义匹配": TaskType.NLP_SEMANTIC_MATCH_INFERENCE.value,
-            }
-
-            # 创建配置数据
-            config_data = {
-                "path": str(csv_file),
-                "name": csv_file.name.split(".")[0],
-                "task_type": task_type_map[task_subtype],
-                "model": "bert-base-chinese",
-                "batch_size": 32,
-                "num_epochs": 3,
-                "text_column": text_col,
-                "label_column": label_col,
-                "num_labels": len(df[label_col].unique()),
-            }
-            return create_dl_config(config_data)
-
-    elif upload_type == "📝 文本文件上传":
+    if upload_type == "📝 文本文件上传":
         st.info("📝 请上传文本文件，每个文件对应一个类别")
         text_path = st.text_input("🔍 文本数据路径")
 
@@ -468,14 +402,20 @@ def nlp_uploader() -> Dict[str, Any]:
                 "语义匹配": TaskType.NLP_SEMANTIC_MATCH_INFERENCE.value,
             }
 
+            # 基础配置
+            st.subheader("模型配置")
+            batch_size = st.number_input("批次大小", 1, 128, 4)
+            model = st.selectbox("模型", ["bert-base-chinese", "bert-base-uncased", "roberta-base"], index=0)
+            num_epochs = st.number_input("训练轮数", 1, 100, 3)
+
             # 创建配置数据
             config_data = {
                 "path": text_path,
                 "name": Path(text_path).name,
                 "task_type": task_type_map[task_subtype],
-                "model": "bert-base-chinese",
-                "batch_size": 32,
-                "num_epochs": 3,
+                "model": model,
+                "batch_size": batch_size,
+                "num_epochs": num_epochs,
             }
             return create_dl_config(config_data)
 
@@ -544,38 +484,9 @@ def collab_uploader() -> Dict[str, Any]:
     """推荐系统基础设置组件"""
     st.subheader("基础设置")
 
-    upload_type = st.radio("选择上传方式", ["📄 CSV文件上传", "💾 示例数据集"])
+    upload_type = st.radio("选择上传方式", ["💾 示例数据集"])
 
-    if upload_type == "📄 CSV文件上传":
-        csv_file = st.file_uploader("上传CSV文件", type=["csv"])
-
-        if csv_file:
-            df = pd.read_csv(csv_file)
-            st.dataframe(df.head())
-
-            cols = df.columns.tolist()
-            user_col = st.selectbox("选择用户列", cols)
-            item_col = st.selectbox("选择物品列", cols)
-            rating_col = st.selectbox("选择评分列", cols)
-
-            # 创建配置数据
-            config_data = {
-                "path": str(csv_file),
-                "name": csv_file.name.split(".")[0],
-                "task_type": TaskType.COLLABORATIVE.value,
-                "model": "collaborative_filtering",
-                "batch_size": 32,
-                "num_epochs": 3,
-                "user_name": user_col,
-                "item_name": item_col,
-                "rating_name": rating_col,
-                "valid_pct": 0.2,
-                "y_range_min": float(df[rating_col].min()),
-                "y_range_max": float(df[rating_col].max()),
-            }
-            return create_dl_config(config_data)
-
-    else:  # 示例数据集
+    if upload_type == "💾 示例数据集":
         default_config = collab_config
 
         # 显示数据集信息
