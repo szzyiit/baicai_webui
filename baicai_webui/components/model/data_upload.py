@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from typing import Any, Dict
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import streamlit as st
 import torch
@@ -25,6 +27,384 @@ from baicai_dev.utils.setups import (
     sentiment_inference_config,
     titanic_config_data,
 )
+
+# 设置matplotlib中文显示，支持多平台
+plt.rcParams["font.sans-serif"] = [
+    "SimHei", "Microsoft YaHei", "Arial Unicode MS", "STHeiti", "PingFang SC", "Heiti TC", "WenQuanYi Micro Hei", "sans-serif"
+]
+plt.rcParams["axes.unicode_minus"] = False  # 正常显示负号
+
+
+@st.cache_data
+def create_histogram(df_clean, col_name):
+    """创建直方图的缓存函数"""
+    try:
+        # 清理之前的图形
+        plt.close("all")
+
+        fig, ax = plt.subplots(figsize=(4, 3))
+        df_clean[col_name].hist(ax=ax, bins=20, alpha=0.7, edgecolor="black")
+        ax.set_title(f"{col_name}")
+        ax.set_xlabel(col_name)
+        ax.set_ylabel("频次")
+        return fig
+    except Exception:
+        plt.close("all")  # 确保出错时也清理图形
+        return None
+
+
+@st.cache_data
+def create_bar_chart(df_clean, col_name):
+    """创建柱状图的缓存函数"""
+    try:
+        # 清理之前的图形
+        plt.close("all")
+
+        value_counts = df_clean[col_name].value_counts().head(10)
+        fig, ax = plt.subplots(figsize=(4, 3))
+        value_counts.plot(kind="bar", ax=ax, alpha=0.7)
+        ax.set_title(f"{col_name}")
+        ax.set_xlabel(col_name)
+        ax.set_ylabel("频次")
+        ax.tick_params(axis="x", rotation=45)
+        plt.tight_layout()
+        return fig
+    except Exception:
+        plt.close("all")  # 确保出错时也清理图形
+        return None
+
+
+@st.cache_data
+def create_scatter_plot_simple(df_clean, x_col, y_col, use_sampling, jitter_amount):
+    """创建散点图的缓存函数（使用固定的采样策略和可控制的抖动）"""
+    try:
+        # 清理之前的图形
+        plt.close("all")
+
+        # 准备数据（已经清理过缺失值）
+        plot_data = df_clean[[x_col, y_col]]
+
+        # 使用固定的采样策略
+        if use_sampling and len(plot_data) > 2000:
+            plot_data = plot_data.sample(n=2000, random_state=42)
+
+        # 获取列类型
+        numeric_cols = df_clean.select_dtypes(include=["number"]).columns.tolist()
+        categorical_cols = df_clean.select_dtypes(include=["object", "category"]).columns.tolist()
+
+        # 数据预处理：为分类数据添加抖动
+        x_data = plot_data[x_col].copy()
+        y_data = plot_data[y_col].copy()
+
+        # 为分类数据添加抖动
+        x_col_categorical = x_col in categorical_cols
+        y_col_categorical = y_col in categorical_cols
+
+        if x_col_categorical:
+            # 将分类数据转换为数值，并添加随机抖动
+            x_unique = x_data.unique()
+            x_mapping = {val: i for i, val in enumerate(x_unique)}
+            x_data = x_data.map(x_mapping)
+            # 添加可控制的抖动
+            x_jitter = np.random.normal(0, jitter_amount, len(x_data))
+            x_data = x_data + x_jitter
+        else:
+            x_unique = None
+
+        if y_col_categorical:
+            # 将分类数据转换为数值，并添加随机抖动
+            y_unique = y_data.unique()
+            y_mapping = {val: i for i, val in enumerate(y_unique)}
+            y_data = y_data.map(y_mapping)
+            # 添加可控制的抖动
+            y_jitter = np.random.normal(0, jitter_amount, len(y_data))
+            y_data = y_data + y_jitter
+        else:
+            y_unique = None
+
+        # 创建散点图
+        fig, ax = plt.subplots(figsize=(10, 8))
+
+        # 普通散点图
+        ax.scatter(x_data, y_data, alpha=0.6, s=20)
+
+        # 设置坐标轴标签
+        ax.set_xlabel(x_col)
+        ax.set_ylabel(y_col)
+        ax.set_title(f"{x_col} vs {y_col} 散点图")
+        ax.grid(True, alpha=0.3)
+
+        # 为分类数据设置刻度标签
+        if x_col_categorical:
+            ax.set_xticks(range(len(x_unique)))
+            ax.set_xticklabels(x_unique, rotation=45, ha="right")
+
+        if y_col_categorical:
+            ax.set_yticks(range(len(y_unique)))
+            ax.set_yticklabels(y_unique)
+
+        # 添加趋势线（仅当两列都是数值型时）
+        if x_col in numeric_cols and y_col in numeric_cols and len(plot_data) > 1:
+            z = np.polyfit(plot_data[x_col], plot_data[y_col], 1)
+            p = np.poly1d(z)
+            ax.plot(plot_data[x_col], p(plot_data[x_col]), "r--", alpha=0.8, linewidth=2)
+
+            # 计算相关系数
+            correlation = plot_data[x_col].corr(plot_data[y_col])
+            ax.text(0.05, 0.95, f"相关系数: {correlation:.3f}",
+                   transform=ax.transAxes, fontsize=10,
+                   verticalalignment="top", bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8))
+
+        plt.tight_layout()
+        return fig, plot_data, x_col_categorical, y_col_categorical, numeric_cols
+    except Exception:
+        plt.close("all")  # 确保出错时也清理图形
+        return None, None, False, False, []
+
+
+@st.cache_data
+def process_data_for_visualization(df):
+    """处理数据用于可视化的缓存函数"""
+    # 处理缺失值，创建干净的数据副本
+    df_clean = df.copy()
+
+    # 只对仍然是object类型的列进行字符串缺失值替换
+    string_missing_values = ["NA", "N/A", "null", "NULL", "missing", "Missing", "MISSING", "", " "]
+
+    # 将字符串缺失值替换为NaN（只对object类型）
+    for col in df_clean.columns:
+        if df_clean[col].dtype == "object":
+            for missing_val in string_missing_values:
+                df_clean[col] = df_clean[col].replace(missing_val, pd.NA)
+
+    # 删除所有缺失值
+    df_clean = df_clean.dropna()
+
+    return df_clean
+
+
+def display_data_info(df: pd.DataFrame) -> None:
+    """显示数据框的基本信息"""
+    with st.expander("数据信息", expanded=False):
+        # 数据类型转换功能 - 放在最开始
+        st.markdown("#### 数据类型调整")
+        st.write("如果某些列的数据类型不正确，可以在这里进行调整：")
+
+        # 数据类型转换选项
+        col1, col2 = st.columns(2)
+        with col1:
+            convert_col = st.selectbox("选择要转换的列", df.columns.tolist())
+        with col2:
+            target_dtype = st.selectbox(
+                "目标数据类型",
+                ["object", "int64", "float64", "datetime64", "category"],
+                format_func=lambda x: {
+                    "object": "文本 (object)",
+                    "int64": "整数 (int64)",
+                    "float64": "浮点数 (float64)",
+                    "datetime64": "日期时间 (datetime64)",
+                    "category": "分类 (category)"
+                }[x]
+            )
+
+        # 转换按钮
+        if st.button("🔄 转换数据类型"):
+            try:
+                original_dtype = df[convert_col].dtype
+
+                if target_dtype == "datetime64":
+                    # 尝试自动解析日期时间
+                    df[convert_col] = pd.to_datetime(df[convert_col], errors="coerce")
+                elif target_dtype == "int64":
+                    # 转换为整数
+                    df[convert_col] = pd.to_numeric(df[convert_col], errors="coerce").astype("Int64")
+                elif target_dtype == "float64":
+                    # 转换为浮点数
+                    df[convert_col] = pd.to_numeric(df[convert_col], errors="coerce")
+                elif target_dtype == "category":
+                    # 转换为分类
+                    df[convert_col] = df[convert_col].astype("category")
+                elif target_dtype == "object":
+                    # 转换为文本
+                    df[convert_col] = df[convert_col].astype("object")
+
+                new_dtype = df[convert_col].dtype
+                st.success(f"✅ 成功将列 '{convert_col}' 从 {original_dtype} 转换为 {new_dtype}")
+
+                # 清除缓存，因为数据类型发生了变化
+                process_data_for_visualization.clear()
+                create_histogram.clear()
+                create_bar_chart.clear()
+                create_scatter_plot_simple.clear()
+
+            except Exception as e:
+                st.error(f"❌ 转换失败: {str(e)}")
+
+        # 显示当前数据类型（转换后）
+        st.write("**当前数据类型：**")
+        dtype_info = df.dtypes.to_frame("数据类型").reset_index()
+        dtype_info.columns = ["列名", "数据类型"]
+        # 将dtype对象转换为字符串
+        dtype_info["数据类型"] = dtype_info["数据类型"].astype(str)
+        st.dataframe(dtype_info, use_container_width=True)
+
+        st.markdown("#### 数据样本")
+        st.dataframe(df.head())
+
+        # 检测各种形式的缺失值
+        st.markdown("#### 数据缺失值信息")
+
+        # 创建数据副本，避免修改原始数据
+        df_clean = df.copy()
+
+        # 定义常见的字符串缺失值
+        string_missing_values = ["NA", "N/A", "null", "NULL", "missing", "Missing", "MISSING", "", " "]
+
+        # 将字符串缺失值替换为NaN
+        for col in df_clean.columns:
+            if df_clean[col].dtype == "object":
+                for missing_val in string_missing_values:
+                    df_clean[col] = df_clean[col].replace(missing_val, pd.NA)
+
+        # 使用isnull()检测所有缺失值
+        all_missing = df_clean.isnull().sum()
+        st.dataframe(all_missing)
+
+
+def display_data_visualization(df: pd.DataFrame) -> None:
+    """显示数据可视化"""
+    with st.expander("数据可视化", expanded=False):
+        # 使用缓存函数处理数据
+        df_clean = process_data_for_visualization(df)
+
+        if len(df_clean) == 0:
+            st.warning("处理缺失值后没有剩余数据，无法进行可视化")
+            return
+
+        # 获取所有列
+        all_cols = df_clean.columns.tolist()
+        numeric_cols = df_clean.select_dtypes(include=["number"]).columns.tolist()
+        categorical_cols = df_clean.select_dtypes(include=["object", "category"]).columns.tolist()
+
+        # 分布图可视化
+        st.markdown("#### 数据分布可视化")
+
+        # 让用户选择要显示的列
+        st.write("选择要查看分布的列（最多6列）：")
+        selected_cols = st.multiselect(
+            "选择列",
+            options=all_cols,
+            default=all_cols[:min(6, len(all_cols))],  # 默认选择前6列
+            max_selections=6,
+            format_func=lambda x: f"{x}" if x in numeric_cols else f"{x}" if x in categorical_cols else x
+        )
+
+        if len(selected_cols) > 0:
+            # 显示选择的列信息
+            st.write(f"已选择 {len(selected_cols)} 列进行可视化")
+
+            # 创建多列布局
+            cols = st.columns(min(3, len(selected_cols)))
+
+            for i, col_name in enumerate(selected_cols):
+                col_idx = i % 3
+
+                with cols[col_idx]:
+                    st.markdown(f"**{col_name}**")
+
+                    if col_name in numeric_cols:
+                        # 数值型数据：显示直方图
+                        fig = create_histogram(df_clean, col_name)
+                        if fig is not None:
+                            st.pyplot(fig)
+                            plt.close(fig)
+                        else:
+                            st.write(f"无法绘制 {col_name} 的直方图")
+
+                    elif col_name in categorical_cols:
+                        # 分类数据：显示柱状图
+                        fig = create_bar_chart(df_clean, col_name)
+                        if fig is not None:
+                            st.pyplot(fig)
+                            plt.close(fig)
+                        else:
+                            st.write(f"无法绘制 {col_name} 的柱状图")
+        else:
+            st.info("请选择要查看的列")
+
+        # 散点图可视化
+        if len(all_cols) >= 2:
+            st.markdown("#### 散点图分析")
+
+            # 采样设置
+            max_sample_size = st.number_input(
+                "最大采样数量（大数据集时使用）",
+                min_value=100,
+                max_value=10000,
+                value=1000,
+                step=100,
+                help="当数据超过此数量时，将随机采样以提升性能"
+            )
+
+            # 抖动设置
+            jitter_amount = st.slider(
+                "分类数据抖动大小",
+                min_value=0.0,
+                max_value=0.5,
+                value=0.1,
+                step=0.01,
+                help="控制分类数据的随机抖动大小，0表示无抖动，数值越大抖动越明显"
+            )
+
+            # 选择散点图的X和Y轴
+            col1, col2 = st.columns(2)
+            with col1:
+                x_col = st.selectbox("选择X轴列", all_cols, index=0)
+            with col2:
+                y_col = st.selectbox("选择Y轴列", all_cols, index=min(1, len(all_cols)-1))
+
+            if x_col != y_col:
+                try:
+                    # 决定是否使用采样
+                    use_sampling = len(df_clean) > max_sample_size
+
+                    # 使用缓存函数创建散点图（使用固定的采样策略和可控制的抖动）
+                    fig, plot_data, x_col_categorical, y_col_categorical, numeric_cols = create_scatter_plot_simple(df_clean, x_col, y_col, use_sampling, jitter_amount)
+
+                    if fig is not None:
+                        # 显示采样信息
+                        if use_sampling:
+                            st.info(f"数据量较大（{len(df_clean)}条），已随机采样2000条进行可视化")
+
+                        # 显示抖动信息
+                        if x_col_categorical or y_col_categorical:
+                            st.info(f"分类数据抖动大小: {jitter_amount:.2f}")
+
+                        st.pyplot(fig)
+                        plt.close(fig)
+
+                        # 显示基本统计信息
+                        st.write("**散点图统计信息：**")
+                        st.write(f"- 数据点数量: {len(plot_data)}")
+
+                        if x_col in numeric_cols:
+                            st.write(f"- X轴({x_col})范围: {plot_data[x_col].min():.2f} - {plot_data[x_col].max():.2f}")
+                        else:
+                            st.write(f"- X轴({x_col})类别数: {plot_data[x_col].nunique()}")
+
+                        if y_col in numeric_cols:
+                            st.write(f"- Y轴({y_col})范围: {plot_data[y_col].min():.2f} - {plot_data[y_col].max():.2f}")
+                        else:
+                            st.write(f"- Y轴({y_col})类别数: {plot_data[y_col].nunique()}")
+                    else:
+                        st.error("绘制散点图时出错")
+
+                except Exception as e:
+                    st.error(f"绘制散点图时出错: {str(e)}")
+            else:
+                st.warning("请选择不同的列作为X轴和Y轴")
+        else:
+            st.info("需要至少2列才能绘制散点图")
 
 
 def get_metric_display_name(metric: str) -> str:
@@ -111,6 +491,10 @@ def configure_metrics_ui(df, target_col=None, default_is_classification=None, co
         )
 
     with st.expander("⚙️ 高级设置", expanded=False):
+        ## 特征工程建议
+        st.write("💡 特征工程建议")
+        requirements = st.text_input("特征工程建议", value=config_data.get("requirements", ""))
+
         # 有序分类数据
         ordinal_features_config = config_data.get("ordinal_features", [])
         # 从配置中提取特征名称列表
@@ -239,6 +623,7 @@ def configure_metrics_ui(df, target_col=None, default_is_classification=None, co
         date_feature,
         need_time if "need_time" in locals() else False,
         threshold_dict if is_time_series and "threshold_dict" in locals() else {},
+        requirements,
     )
 
 
@@ -582,7 +967,8 @@ def ml_uploader() -> Dict[str, Any]:
             try:
                 # 使用load_data加载数据
                 df = load_data(path=file_path, **extra_params)
-                st.dataframe(df.head())
+                display_data_info(df)
+                display_data_visualization(df)
 
                 # 让用户设置基本配置并配置任务类型和评价指标
                 (
@@ -599,6 +985,7 @@ def ml_uploader() -> Dict[str, Any]:
                     date_feature,
                     need_time,
                     threshold,
+                    requirements,
                 ) = configure_metrics_ui(df, None, None, {}, file.name.split(".")[0])
 
                 # 创建配置数据
@@ -620,6 +1007,7 @@ def ml_uploader() -> Dict[str, Any]:
                     "date_feature": date_feature,
                     "need_time": need_time,
                     "threshold": threshold,
+                    "requirements": requirements,
                 }
 
                 # 使用create_ml_config创建标准配置
@@ -691,7 +1079,8 @@ def ml_uploader() -> Dict[str, Any]:
 
             config_data = dataset_configs[selected_dataset]
             df = load_example_data(selected_dataset)
-            st.dataframe(df.head())
+            display_data_info(df)
+            display_data_visualization(df)
 
             # 配置任务类型和评价指标，使用已有配置作为默认值
             (
@@ -708,6 +1097,7 @@ def ml_uploader() -> Dict[str, Any]:
                 date_feature,
                 need_time,
                 threshold,
+                requirements,
             ) = configure_metrics_ui(
                 df, None, config_data.get("classification"), config_data, config_data.get("name")
             )
@@ -731,6 +1121,7 @@ def ml_uploader() -> Dict[str, Any]:
                 "date_feature": date_feature,
                 "need_time": need_time,
                 "threshold": threshold,
+                "requirements": requirements,
             }
 
             # 使用create_ml_config创建标准配置

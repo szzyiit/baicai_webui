@@ -1,7 +1,6 @@
 from typing import Any, Dict
 
 import streamlit as st
-from baicai_base.services import LLM
 from baicai_dev.agents.graphs.action_builder import ActionBuilder
 from baicai_dev.agents.graphs.baseline_builder import BaselineBuilder
 from baicai_dev.agents.graphs.dl_builder.dl_builder import DLBuilder
@@ -10,8 +9,6 @@ from baicai_dev.agents.graphs.optimization_builder import OptimizationBuilder
 from baicai_dev.agents.graphs.workflow_builder import WorkflowBuilder
 from baicai_dev.utils.data import TaskType
 from baicai_dev.utils.setups import create_dl_config
-
-from baicai_webui.components.model.model_config_page import get_page_llm
 
 
 class GraphExecutor:
