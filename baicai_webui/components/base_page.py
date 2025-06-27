@@ -73,6 +73,10 @@ class BasePage:
                     st.session_state.page_state["post_train_completed"] = False
                     st.session_state.page_state["run_post_train"] = True
                     try:
+                        # 添加内存清理
+                        import gc
+                        gc.collect()
+                        
                         result = asyncio.run(
                             monitor.start_training(
                                 task_type=self.task_type.value,
@@ -87,8 +91,16 @@ class BasePage:
                             st.session_state.graph_state["dl_success"] = state_values.get("dl_success", False)
                             st.session_state.page_state["helper_ready"] = True
                             st.success("训练已启动！")
+                        else:
+                            st.warning("训练完成，但未返回结果")
                     except Exception as e:
                         st.error(f"训练失败：{str(e)}")
+                        import traceback
+                        st.code(traceback.format_exc(), language="python")
+                    finally:
+                        # 强制清理内存
+                        import gc
+                        gc.collect()
 
         with tab2:
             # Handle post_train in a separate rerun
@@ -98,19 +110,35 @@ class BasePage:
                 and not st.session_state.page_state["post_train_completed"]
             ):
                 try:
-                    asyncio.run(post_train(st.session_state.code_interpreter))
+                    # 添加超时保护
+                    asyncio.run(asyncio.wait_for(
+                        post_train(st.session_state.code_interpreter),
+                        timeout=120.0  # 2分钟超时
+                    ))
+                    st.session_state.page_state["post_train_completed"] = True
+                    st.session_state.page_state["run_post_train"] = False
+                except asyncio.TimeoutError:
+                    st.error("训练后处理超时，请检查是否有长时间运行的操作")
                     st.session_state.page_state["post_train_completed"] = True
                     st.session_state.page_state["run_post_train"] = False
                 except Exception as e:
                     st.error(f"训练后处理失败：{str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc(), language="python")
                     st.session_state.page_state["post_train_completed"] = True
                     st.session_state.page_state["run_post_train"] = False
             # Display results
             if st.session_state.page_state["helper_ready"]:
-                result_display.display_results(st.session_state.graph_state, graph="dl")
+                try:
+                    result_display.display_results(st.session_state.graph_state, graph="dl")
+                except Exception as e:
+                    st.error(f"显示结果失败：{str(e)}")
 
         with tab3:
             if st.session_state.page_state["helper_ready"]:
-                ai_assistant.create_ai_assistant(monitor, task_type=self.task_type.value)
+                try:
+                    ai_assistant.create_ai_assistant(monitor, task_type=self.task_type.value)
+                except Exception as e:
+                    st.error(f"AI助手创建失败：{str(e)}")
             else:
                 st.info("请先完成训练")

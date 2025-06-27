@@ -135,7 +135,7 @@ def format_code_block(code, language="python"):
 
 def display_code_result(code_item, index=None):
     """显示单个代码项的结果"""
-    with st.expander(f"版本 {index + 1 if index is not None else ''}", expanded=index == 0):
+    with st.expander(f"版本 {index + 1 if index is not None else ''}"):
         if "code" in code_item:
             st.markdown(format_code_block(code_item["code"]))
 

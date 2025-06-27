@@ -223,12 +223,12 @@ def show():
             model_prefix = "best"
             data_prefix = "workflow"
         else:
-            if st.session_state.current_step == 1 or st.session_state.current_step == 2:
+            if st.session_state.current_step == 1 or st.session_state.current_step == 2 or st.session_state.current_step == 3:
                 title = "基线模型解释"
                 model_prefix = "baseline"
                 data_prefix = "baseline"
 
-            elif (st.session_state.current_step == 0 and st.session_state.runned) or st.session_state.current_step == 3:
+            elif st.session_state.current_step == 0 and st.session_state.runned:
                 title = "最终模型解释"
                 model_prefix = "best"
                 data_prefix = "workflow"

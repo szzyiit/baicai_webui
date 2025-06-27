@@ -151,6 +151,17 @@ class TrainingMonitor:
         finally:
             # 清理当前日志文件引用
             self._current_log_file = None
+            
+            # 强制清理内存
+            import gc
+            gc.collect()
+            
+            # 清理matplotlib缓存
+            try:
+                import matplotlib.pyplot as plt
+                plt.close('all')
+            except:
+                pass
 
     def _get_latest_log_file(self):
         """获取最新的非空日志文件路径"""

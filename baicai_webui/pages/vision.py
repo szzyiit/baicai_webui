@@ -189,7 +189,12 @@ async def post_train(code_interpreter):
             st.warning("请先上传数据并开始训练")
             return
 
-        code = """
+        try:
+            # 添加内存清理
+            import gc
+            gc.collect()
+            
+            code = """
 import base64
 from io import BytesIO
 def fig_to_base64(fig):
@@ -277,27 +282,75 @@ def visualize_tensor_images(tensor_images, titles=None, rows=1, cols=1):
     plt.close(fig)
 
 try:
-    images, preds, targs, decoded, _ = interp[idxs]
-    # Create titles for each image showing loss value
-    titles = [f"Target: {interp.vocab[t]}/Predict: {interp.vocab[d]}" for t,d in zip(targs, decoded)]
-    visualize_tensor_images(images, titles, rows=2, cols=2)
+    # 检查interp和idxs是否存在
+    if 'interp' in globals() and 'idxs' in globals():
+        images, preds, targs, decoded, _ = interp[idxs]
+        # Create titles for each image showing loss value
+        titles = [f"Target: {interp.vocab[t]}/Predict: {interp.vocab[d]}" for t,d in zip(targs, decoded)]
+        visualize_tensor_images(images, titles, rows=2, cols=2)
+    else:
+        print("interp or idxs not found in global scope")
 except Exception as e:
-    st.error(f"获取最大损失失败: {str(e)}")
+    print(f"获取最大损失失败: {str(e)}")
+    import traceback
+    print(traceback.format_exc())
 """
-        result = await code_interpreter.run(code, ignore_keep_len=True)
-        base64_start = result[0].find("START_BASE64")
-        base64_end = result[0].find("END_BASE64")
-        base64_string = result[0][base64_start + len("START_BASE64") : base64_end]
-
-        img_container = f"""
-            <div style="width:100%; overflow:auto; margin:10px 0;">
-                <img src="data:image/png;base64,{base64_string}"
-                        style="max-width:100%; height:auto; display:block; margin:0 auto;"
-                        onerror="this.style.display='none'"/>
-            </div>
-            """
-        st.subheader("损失值最大的若干图片")
-        st.markdown(img_container, unsafe_allow_html=True)
+            
+            # 设置超时时间，防止长时间阻塞
+            import asyncio
+            try:
+                result = await asyncio.wait_for(
+                    code_interpreter.run(code, ignore_keep_len=True),
+                    timeout=60.0  # 60秒超时
+                )
+                
+                # 检查结果是否包含base64数据
+                if result and len(result) > 0:
+                    base64_start = result[0].find("START_BASE64")
+                    base64_end = result[0].find("END_BASE64")
+                    
+                    if base64_start != -1 and base64_end != -1:
+                        base64_string = result[0][base64_start + len("START_BASE64") : base64_end].strip()
+                        
+                        if base64_string:
+                            img_container = f"""
+                                <div style="width:100%; overflow:auto; margin:10px 0;">
+                                    <img src="data:image/png;base64,{base64_string}"
+                                            style="max-width:100%; height:auto; display:block; margin:0 auto;"
+                                            onerror="this.style.display='none'"/>
+                                </div>
+                                """
+                            st.subheader("损失值最大的若干图片")
+                            st.markdown(img_container, unsafe_allow_html=True)
+                        else:
+                            st.warning("未能生成图片数据")
+                    else:
+                        st.warning("代码执行完成，但未找到图片数据")
+                else:
+                    st.warning("代码执行完成，但未返回结果")
+                    
+            except asyncio.TimeoutError:
+                st.error("代码执行超时，请检查代码是否有死循环或长时间运行的操作")
+            except Exception as e:
+                st.error(f"代码执行失败: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc(), language="python")
+                
+        except Exception as e:
+            st.error(f"训练后处理失败: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc(), language="python")
+        finally:
+            # 强制清理内存
+            import gc
+            gc.collect()
+            
+            # 清理matplotlib缓存
+            try:
+                import matplotlib.pyplot as plt
+                plt.close('all')
+            except:
+                pass
 
 
 def show():
