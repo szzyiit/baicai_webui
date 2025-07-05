@@ -763,63 +763,24 @@ def nlp_uploader() -> Dict[str, Any]:
     """NLP基础设置组件"""
     st.subheader("基础设置")
 
-    upload_type = st.radio("选择上传方式", ["📝 文本文件上传", "💾 示例数据集"])
+    # 只选择任务类型
+    nlp_configs = {
+        "情感分析推理": sentiment_inference_config,
+        "命名实体识别": ner_inference_config,
+        "语义匹配": semantic_match_inference_config,
+        "情感分类训练": sentiment_classifier_trainer_config,
+    }
 
-    if upload_type == "📝 文本文件上传":
-        st.info("📝 请上传文本文件，每个文件对应一个类别")
-        text_path = st.text_input("🔍 文本数据路径")
+    selected_dataset = st.selectbox("🔍 选择任务", list(nlp_configs.keys()))
+    default_config = nlp_configs[selected_dataset]
 
-        if text_path:
-            # 选择具体的NLP任务类型
-            task_subtype = st.selectbox(
-                "选择具体的NLP任务类型",
-                [
-                    "情感分析",
-                    "命名实体识别",
-                    "语义匹配",
-                ],
-            )
+    # 显示任务类型
+    st.write(f"任务类型: {default_config['task_type']}")
 
-            # 根据选择设置任务类型
-            task_type_map = {
-                "情感分析": TaskType.NLP_SENTIMENT_TRAINER.value,
-                "命名实体识别": TaskType.NLP_NER_INFERENCE.value,
-                "语义匹配": TaskType.NLP_SEMANTIC_MATCH_INFERENCE.value,
-            }
-
-            # 基础配置
-            st.subheader("模型配置")
-            batch_size = st.number_input("批次大小", 1, 128, 4)
-            model = st.selectbox("模型", ["bert-base-chinese", "bert-base-uncased", "roberta-base"], index=0)
-            num_epochs = st.number_input("训练轮数", 1, 100, 3)
-
-            # 创建配置数据
-            config_data = {
-                "path": text_path,
-                "name": Path(text_path).name,
-                "task_type": task_type_map[task_subtype],
-                "model": model,
-                "batch_size": batch_size,
-                "num_epochs": num_epochs,
-            }
-            return create_dl_config(config_data)
-
-    else:  # 示例数据集
-        nlp_configs = {
-            "情感分析推理": sentiment_inference_config,
-            "命名实体识别": ner_inference_config,
-            "语义匹配": semantic_match_inference_config,
-            "情感分类训练": sentiment_classifier_trainer_config,
-        }
-
-        selected_dataset = st.selectbox("选择示例数据集", list(nlp_configs.keys()))
-        default_config = nlp_configs[selected_dataset]
-
-        # 显示任务类型
-        st.write(f"任务类型: {default_config['task_type']}")
-
-        if "path" in default_config:  # 训练任务
-            st.write(f"数据路径: {default_config['path']}")
+    # 如果是"情感分类训练"，提供数据路径输入
+    if selected_dataset == "情感分类训练":
+        data_path = st.text_input("🔍 数据路径", value=default_config.get("path", ""))
+        if data_path:
             text_column = st.text_input("文本列名", value=default_config.get("text_column", ""))
             label_column = st.text_input("标签列名", value=default_config.get("label_column", ""))
             num_labels = st.number_input("类别数量", 2, 100, default_config.get("num_labels", 2))
@@ -827,7 +788,7 @@ def nlp_uploader() -> Dict[str, Any]:
 
             # 创建配置数据
             config_data = {
-                "path": default_config["path"],
+                "path": data_path,
                 "name": default_config.get("name", selected_dataset),
                 "task_type": default_config["task_type"],  # 使用预设的任务类型
                 "model": default_config.get("model", "bert-base-chinese"),
@@ -843,24 +804,26 @@ def nlp_uploader() -> Dict[str, Any]:
 
             return create_dl_config(config_data)
 
-        else:  # 推理任务
-            if "input" in default_config:
-                input_text = st.text_input("输入文本", value=default_config["input"])
-                config_data = {
-                    "task_type": default_config["task_type"],  # 使用预设的任务类型
-                    "model": default_config.get("model", "bert-base-chinese"),
-                    "input": input_text,
-                }
-            elif "input1" in default_config:
-                input1 = st.text_input("输入文本1", value=default_config["input1"])
-                input2 = st.text_input("输入文本2", value=default_config["input2"])
-                config_data = {
-                    "task_type": default_config["task_type"],  # 使用预设的任务类型
-                    "model": default_config.get("model", "bert-base-chinese"),
-                    "input1": input1,
-                    "input2": input2,
-                }
-            return create_dl_config(config_data)
+    else:  # 推理任务
+        if "input" in default_config:
+            input_text = st.text_input("输入文本", value=default_config["input"])
+            config_data = {
+                "name": selected_dataset,  # 添加任务名称
+                "task_type": default_config["task_type"],  # 使用预设的任务类型
+                "model": default_config.get("model", "bert-base-chinese"),
+                "input": input_text,
+            }
+        elif "input1" in default_config:
+            input1 = st.text_input("输入文本1", value=default_config["input1"])
+            input2 = st.text_input("输入文本2", value=default_config["input2"])
+            config_data = {
+                "name": selected_dataset,  # 添加任务名称
+                "task_type": default_config["task_type"],  # 使用预设的任务类型
+                "model": default_config.get("model", "bert-base-chinese"),
+                "input1": input1,
+                "input2": input2,
+            }
+        return create_dl_config(config_data)
 
     return {}
 

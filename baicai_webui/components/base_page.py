@@ -18,6 +18,9 @@ class BasePage:
     def __init__(self, task_type: TaskType, data_uploader_func):
         self.task_type = task_type
         self.data_uploader_func = data_uploader_func
+        
+        # 初始化按钮文本
+        self.button_text = "开始训练"  # 默认训练
 
         if "code_interpreter" not in st.session_state:
             st.session_state.code_interpreter = setup_code_interpreter()
@@ -68,8 +71,19 @@ class BasePage:
                 if pre_train:
                     pre_train()
 
+                # 根据任务类型动态设置按钮文本
+                if self.task_type == TaskType.NLP:
+                    # 检查是否是情感分类训练任务
+                    selected_task = data_config["configurable"]["name"]
+                    if selected_task == "情感分类训练":
+                        button_text = "开始训练"
+                    else:
+                        button_text = "开始推理"
+                else:
+                    button_text = "开始训练"
+
                 # Show start training button
-                if st.button("开始训练", type="primary", key="start_training_button"):
+                if st.button(button_text, type="primary", key="start_training_button"):
                     st.session_state.page_state["post_train_completed"] = False
                     st.session_state.page_state["run_post_train"] = True
                     try:
