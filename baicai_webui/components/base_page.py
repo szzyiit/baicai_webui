@@ -9,8 +9,6 @@ from baicai_dev.utils.data import TaskType
 from baicai_webui.components.chat import ai_assistant
 from baicai_webui.components.model import create_training_monitor, result_display
 
-torch.classes.__path__ = [os.path.join(torch.__path__[0], torch.classes.__file__)]
-
 
 class BasePage:
     """Base page component for different task types"""

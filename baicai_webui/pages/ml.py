@@ -123,14 +123,26 @@ def _init_session_state():
     if "baseline_codes" not in st.session_state:
         st.session_state.baseline_codes = None
 
+    if "baseline_success" not in st.session_state:
+        st.session_state.baseline_success = False
+
     if "actions" not in st.session_state:
         st.session_state.actions = None
+
+    if "action_success" not in st.session_state:
+        st.session_state.action_success = False
 
     if "workflow_codes" not in st.session_state:
         st.session_state.workflow_codes = None
 
+    if "workflow_success" not in st.session_state:
+        st.session_state.workflow_success = False
+
     if "optimization_codes" not in st.session_state:
         st.session_state.optimization_codes = None
+
+    if "optimization_success" not in st.session_state:
+        st.session_state.optimization_success = False
 
     # 初始化错误消息状态
     if "error_message" not in st.session_state:

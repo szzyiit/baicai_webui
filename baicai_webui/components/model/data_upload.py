@@ -634,35 +634,93 @@ def vision_uploader() -> Dict[str, Any]:
     upload_type = st.radio("选择上传方式", ["📁 文件夹上传", "💾 示例数据集"])
 
     if upload_type == "📁 文件夹上传":
-        st.info("📂 请选择包含图片的文件夹，每个子文件夹名为类别名")
-        train_path = st.text_input("🔍 训练数据路径")
-        valid_path = st.text_input("🔍 验证数据路径（可选）")
+        # 选择标注方式
+        label_type = st.radio("选择标注方式", ["📁 文件夹结构标注", "📄 CSV文件标注"], horizontal=True)
+        
+        if label_type == "📁 文件夹结构标注":
+            st.info("📂 请选择包含图片的文件夹，每个子文件夹名为类别名")
+            train_path = st.text_input("🔍 训练数据路径")
+            valid_path = st.text_input("🔍 验证数据路径（可选）")
 
-        if train_path:
-            # 基础配置
-            st.subheader("模型配置")
-            batch_size = st.number_input("批次大小", 1, 128, 4)
-            model = st.selectbox("模型", ["resnet18", "resnet34", "resnet50"], index=0)
-            valid_pct = st.slider("验证集比例", 0.0, 0.5, 0.2)
-            num_workers = st.number_input("数据加载线程数", 0, 16, 4)
-            size = st.number_input("图片大小", 16, 256, 128)
+            if train_path:
+                # 基础配置
+                st.subheader("模型配置")
+                batch_size = st.number_input("批次大小", 1, 128, 4)
+                model = st.selectbox("模型", ["resnet18", "resnet34", "resnet50"], index=0)
+                valid_pct = st.slider("验证集比例", 0.0, 0.5, 0.2)
+                num_workers = st.number_input("数据加载线程数", 0, 16, 4)
+                size = st.number_input("图片大小", 16, 256, 128)
 
-            # 创建配置数据
-            config_data = {
-                "path": train_path,
-                "valid_path": valid_path,
-                "name": Path(train_path).name,
-                "task_type": TaskType.VISION_SINGLE_LABEL.value,
-                "model": model,
-                "batch_size": batch_size,
-                "valid_pct": valid_pct,
-                "num_workers": num_workers,
-                "size": size,
-                "train_folder": None,
-                "valid_folder": None,
-                "device": "cuda" if torch.cuda.is_available() else "cpu",
-            }
-            return create_dl_config(config_data)
+                # 创建配置数据
+                config_data = {
+                    "path": train_path,
+                    "valid_path": valid_path,
+                    "name": Path(train_path).name,
+                    "task_type": TaskType.VISION_SINGLE_LABEL.value,
+                    "model": model,
+                    "batch_size": batch_size,
+                    "valid_pct": valid_pct,
+                    "num_workers": num_workers,
+                    "size": size,
+                    "train_folder": None,
+                    "valid_folder": None,
+                    "device": "cuda" if torch.cuda.is_available() else "cpu",
+                }
+                return create_dl_config(config_data)
+        
+        else:  # CSV文件标注
+            st.info("📄 请选择包含图片的文件夹，并提供CSV标注文件")
+            
+            # 数据路径配置
+            data_path = st.text_input("🔍 数据根目录路径", help="包含图片文件夹和CSV标注文件的根目录")
+            
+            if data_path:
+                # CSV文件配置
+                st.subheader("CSV标注文件配置")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    folder = st.text_input("📁 图片文件夹名称", value="", help="图片所在子文件夹名称，如果图片在根目录请留空")
+                    csv_file = st.text_input("📄 CSV文件名", value="labels.csv", help="CSV标注文件名")
+                
+                with col2:
+                    image_col = st.text_input("🖼️ 图片列名", value="image", help="CSV文件中图片文件名所在列名")
+                    label_col = st.text_input("🏷️ 标签列名", value="label", help="CSV文件中标签所在列名")
+                
+                # 任务类型选择
+                task_type_option = st.radio("任务类型", ["🔍 单标签分类", "🏷️ 多标签分类"], horizontal=True)
+                
+                # 基础配置
+                st.subheader("模型配置")
+                batch_size = st.number_input("批次大小", 1, 128, 4)
+                model = st.selectbox("模型", ["resnet18", "resnet34", "resnet50"], index=0)
+                valid_pct = st.slider("验证集比例", 0.0, 0.5, 0.2)
+                num_workers = st.number_input("数据加载线程数", 0, 16, 4)
+                size = st.number_input("图片大小", 16, 256, 128)
+
+                # 确定任务类型
+                if task_type_option == "🏷️ 多标签分类":
+                    task_type = TaskType.VISION_MULTI_LABEL.value
+                else:
+                    task_type = TaskType.VISION_CSV.value
+
+                # 创建配置数据
+                config_data = {
+                    "path": data_path,
+                    "name": Path(data_path).name,
+                    "task_type": task_type,
+                    "model": model,
+                    "batch_size": batch_size,
+                    "valid_pct": valid_pct,
+                    "num_workers": num_workers,
+                    "size": size,
+                    "device": "cuda" if torch.cuda.is_available() else "cpu",
+                    "folder": f"'{folder}'" if folder else None,
+                    "csv_file": f"'{csv_file}'",
+                    "image_col": f"'{image_col}'",
+                    "label_col": f"'{label_col}'",
+                }
+                return create_dl_config(config_data)
 
     else:  # 示例数据集
         vision_configs = {
@@ -949,7 +1007,7 @@ def ml_uploader() -> Dict[str, Any]:
                     need_time,
                     threshold,
                     requirements,
-                ) = configure_metrics_ui(df, None, None, {}, file.name.split(".")[0])
+                ) = configure_metrics_ui(df, None, None, {}, file.name.split(".")[0].replace(" ", "_"))
 
                 # 创建配置数据
                 config_data = {

@@ -58,7 +58,7 @@ def display_action_items(actions):
     for i, action in enumerate(actions):
         st.subheader(f"{i + 1}: {action.get('action', '未命名动作')}")
 
-        rejected = action.get("rejected", False)
+        rejected = action.get("rejected", "false") == "true"
 
         with st.expander(f"特征工程建议 {i + 1}: {'✅ 接受建议' if not rejected else '❌ 拒绝建议'}", expanded=st.session_state.expand_all):
             if action.get("success", False):

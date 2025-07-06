@@ -428,16 +428,67 @@ def create_shap_analysis(title: str = "SHAP 分析", model_path: Path | None = N
         st.session_state.clustering = None
     if "cutoff" not in st.session_state:
         st.session_state.cutoff = 0.5
+    
+    # Track data and model paths to detect changes
+    if "current_data_path" not in st.session_state:
+        st.session_state.current_data_path = None
+    if "current_model_path" not in st.session_state:
+        st.session_state.current_model_path = None
+    
+    # Check if data source or model has changed
+    data_path_changed = st.session_state.current_data_path != str(data_path) if data_path else False
+    model_path_changed = st.session_state.current_model_path != str(model_path) if model_path else False
+    
+    if data_path_changed or model_path_changed:
+        # Only clear draw_matplotlib related session state caches (图像缓存)
+        # Do NOT clear st.cache_data and st.cache_resource as they will naturally refresh with new parameters
+        keys_to_remove = []
+        for key in st.session_state.keys():
+            if key.startswith(("bar-", "beeswarm", "force_plot_", "waterfall_plot_")):
+                keys_to_remove.append(key)
+        
+        for key in keys_to_remove:
+            del st.session_state[key]
+        
+        # Clear height and width caches used by draw_matplotlib
+        if "height" in st.session_state:
+            del st.session_state["height"]
+        if "width" in st.session_state:
+            del st.session_state["width"]
+        
+        # Reset session state variables related to SHAP analysis
+        st.session_state.shap_values = None
+        st.session_state.explainer = None
+        st.session_state.clustering = None
+        st.session_state.selected_row = 0
+        st.session_state.selected_class = 0
+        
+        # Update current paths
+        st.session_state.current_data_path = str(data_path) if data_path else None
+        st.session_state.current_model_path = str(model_path) if model_path else None
+        
+        # Show info message
+        if data_path_changed:
+            st.info("检测到数据源变更，已清除图像缓存和重置分析状态")
+        if model_path_changed:
+            st.info("检测到模型变更，已清除图像缓存和重置分析状态")
 
     # Load data and model
-
-    model = load_model(model_path)
-    if type(model).__name__ == "GridSearchCV":
-        model = model.best_estimator_
+    try:
+        model = load_model(model_path)
+        if type(model).__name__ == "GridSearchCV":
+            model = model.best_estimator_
+    except Exception as e:
+        st.error(f"加载模型失败: {str(e)}")
+        return
 
     is_classification = is_classification_model(model)
 
-    X_train, X_test, y_train, y_test, mapping = load_data(data_path, is_classification=is_classification)
+    try:
+        X_train, X_test, y_train, y_test, mapping = load_data(data_path, is_classification=is_classification)
+    except Exception as e:
+        st.error(f"加载数据失败: {str(e)}")
+        return
 
     # Get unique classes for classification models
     if is_classification:
@@ -451,34 +502,128 @@ def create_shap_analysis(title: str = "SHAP 分析", model_path: Path | None = N
             except Exception:
                 unique_classes = sorted(y_train.unique())
                 st.warning("无法从模型获取类别顺序，使用训练数据中的类别顺序")
+        
+        # Ensure unique_classes is not empty and convert to list for compatibility
+        if unique_classes is None or len(unique_classes) == 0:
+            st.error("无法获取类别信息，请检查数据和模型")
+            return
+        
+        # Convert to list to ensure compatibility with range() and indexing
+        unique_classes = list(unique_classes)
+        
     else:
         unique_classes = None
 
     # Create explainer and compute SHAP values
     if st.session_state.explainer is None:
-        st.session_state.explainer = create_explainer(model, X_train, is_classification)
+        try:
+            st.session_state.explainer = create_explainer(model, X_train, is_classification)
+        except Exception as e:
+            st.error(f"创建SHAP解释器失败: {str(e)}")
+            return
 
     # Compute clustering if not already done
     if st.session_state.clustering is None:
-        st.session_state.clustering = compute_clustering(X_test, y_test)
+        try:
+            st.session_state.clustering = compute_clustering(X_test, y_test)
+        except Exception as e:
+            st.warning(f"计算聚类失败: {str(e)}，将使用默认设置")
+            st.session_state.clustering = None
 
     # Update SHAP values when class selection changes
     if is_classification:
-        selected_class = st.selectbox(
-            "选择要分析的目标类别",
-            range(len(unique_classes)),
-            format_func=lambda x: mapping[unique_classes[x]],
-            key="class_selector",
-        )
+        # Create a safe format function that handles different types of unique_classes
+        def format_class_name(x):
+            try:
+                # First check if x is within range
+                if x < 0 or x >= len(unique_classes):
+                    return f"Class {x}"
+                
+                class_value = unique_classes[x]
+                
+                # Simple approach: try mapping by index first
+                if x in mapping:
+                    return str(mapping[x])
+                
+                # Try mapping by class value
+                if class_value in mapping:
+                    return str(mapping[class_value])
+                
+                # If all else fails, return string representation
+                return str(class_value)
+            except Exception as e:
+                st.write(f"Debug: format_class_name error for x={x}: {e}")
+                return f"Class {x}"
+        
+        try:
+            # Create options list safely
+            num_classes = len(unique_classes)
+            options = list(range(num_classes))
+            
+            selected_class = st.selectbox(
+                "选择要分析的目标类别",
+                options,
+                format_func=format_class_name,
+                key="class_selector",
+            )
+        except Exception as e:
+            st.error(f"创建类别选择器失败: {str(e)}")
+            st.write(f"Debug: selectbox error: {e}")
+            # Also show the traceback
+            import traceback
+            st.code(traceback.format_exc())
+            
+            # Fallback: try without format_func
+            try:
+                st.warning("尝试使用简化的类别选择器...")
+                # Create simple options
+                simple_options = [f"Class {i} ({unique_classes[i]})" for i in range(len(unique_classes))]
+                selected_class = st.selectbox(
+                    "选择要分析的目标类别 (简化版)",
+                    range(len(unique_classes)),
+                    format_func=lambda x: simple_options[x],
+                    key="class_selector_fallback",
+                )
+            except Exception as e2:
+                st.error(f"连简化版类别选择器也失败了: {str(e2)}")
+                # Ultimate fallback - create a simple string-based selectbox
+                try:
+                    st.warning("尝试使用最简单的类别选择器...")
+                    class_names = [f"Class {i}" for i in range(len(unique_classes))]
+                    selected_class_name = st.selectbox(
+                        "选择要分析的目标类别 (最简版)",
+                        class_names,
+                        key="class_selector_ultimate_fallback",
+                    )
+                    selected_class = class_names.index(selected_class_name)
+                except Exception as e3:
+                    st.error(f"所有类别选择器都失败了: {str(e3)}")
+                    # Last resort - just use the first class
+                    selected_class = 0
+                    st.info("使用第一个类别作为默认选择")
         if st.session_state.selected_class != selected_class or st.session_state.shap_values is None:
             st.session_state.selected_class = selected_class
-            st.session_state.shap_values = compute_shap_values(st.session_state.explainer, X_test, selected_class)
+            try:
+                st.session_state.shap_values = compute_shap_values(st.session_state.explainer, X_test, selected_class)
+            except Exception as e:
+                st.error(f"计算SHAP值失败: {str(e)}")
+                return
     else:
         if st.session_state.shap_values is None:
-            st.session_state.shap_values = compute_shap_values(st.session_state.explainer, X_test)
+            try:
+                st.session_state.shap_values = compute_shap_values(st.session_state.explainer, X_test)
+            except Exception as e:
+                st.error(f"计算SHAP值失败: {str(e)}")
+                return
 
     # Create a DataFrame for preview
-    preview_df = pd.concat([X_test, y_test], axis=1)
+    try:
+        preview_df = pd.concat([X_test, y_test], axis=1)
+    except Exception as e:
+        st.error(f"创建预览数据失败: {str(e)}")
+        st.write(f"Debug: X_test shape: {X_test.shape if hasattr(X_test, 'shape') else 'N/A'}")
+        st.write(f"Debug: y_test shape: {y_test.shape if hasattr(y_test, 'shape') else 'N/A'}")
+        return
 
     st.subheader("Bar 分析")
 
@@ -496,26 +641,34 @@ def create_shap_analysis(title: str = "SHAP 分析", model_path: Path | None = N
         st.session_state.cutoff = cutoff
 
     if st.session_state.shap_values is not None:
-        draw_matplotlib(
-            shap.plots.bar(
-                st.session_state.shap_values,
-                clustering=st.session_state.clustering,
-                clustering_cutoff=st.session_state.cutoff,
-            ),
-            height=300,
-            key=f"bar-{str(st.session_state.selected_class)}-cutoff{cutoff}",
-        )
+        try:
+            draw_matplotlib(
+                shap.plots.bar(
+                    st.session_state.shap_values,
+                    clustering=st.session_state.clustering,
+                    clustering_cutoff=st.session_state.cutoff,
+                ),
+                height=300,
+                key=f"bar-{str(st.session_state.selected_class)}-cutoff{cutoff}",
+            )
+        except Exception as e:
+            st.error(f"生成Bar图失败: {str(e)}")
+            st.warning("可能是因为SHAP值格式不兼容或聚类参数设置问题")
 
     with st.expander("Bar 图展示的是 特征对模型预测影响的平均绝对贡献值"):
         st.markdown(BAR_PLOT_INFO)
 
     st.subheader("Beeswarm 分析")
     if st.session_state.shap_values is not None:
-        draw_matplotlib(
-            shap.plots.beeswarm(st.session_state.shap_values),
-            height=300,
-            key="beeswarm" + str(st.session_state.selected_class),
-        )
+        try:
+            draw_matplotlib(
+                shap.plots.beeswarm(st.session_state.shap_values),
+                height=300,
+                key="beeswarm" + str(st.session_state.selected_class),
+            )
+        except Exception as e:
+            st.error(f"生成Beeswarm图失败: {str(e)}")
+            st.warning("可能是因为SHAP值格式不兼容")
 
     with st.expander("Beeswarm 图将所有样本的 SHAP 值集中展示在一张图上"):
         st.markdown(BEESWARM_PLOT_INFO)
@@ -551,23 +704,33 @@ def create_shap_analysis(title: str = "SHAP 分析", model_path: Path | None = N
 
     if st.session_state.shap_values is not None:
         if plot_type == "Force Plot":
-            draw_matplotlib(
-                shap.plots.force(
-                    st.session_state.shap_values[st.session_state.selected_row],
-                ),
-                key=plot_key,
-            )
+            try:
+                draw_matplotlib(
+                    shap.plots.force(
+                        st.session_state.shap_values[st.session_state.selected_row],
+                    ),
+                    key=plot_key,
+                )
+            except Exception as e:
+                st.error(f"生成Force Plot失败: {str(e)}")
+                st.warning("可能是因为SHAP值格式不兼容或选择的行索引超出范围")
+            
             with st.expander(
                 "Force Plot 是针对 单个样本，告诉你每个特征到底是 **拉高** 预测结果，还是 **拉低** 预测结果"
             ):
                 st.markdown(FORCE_PLOT_INFO)
         else:
-            plt.clf()  # Clear the figure to prevent overlapping
-            draw_matplotlib(
-                shap.plots.waterfall(
-                    st.session_state.shap_values[st.session_state.selected_row],
-                ),
-                key=plot_key,
-            )
+            try:
+                plt.clf()  # Clear the figure to prevent overlapping
+                draw_matplotlib(
+                    shap.plots.waterfall(
+                        st.session_state.shap_values[st.session_state.selected_row],
+                    ),
+                    key=plot_key,
+                )
+            except Exception as e:
+                st.error(f"生成Waterfall Plot失败: {str(e)}")
+                st.warning("可能是因为SHAP值格式不兼容或选择的行索引超出范围")
+            
             with st.expander("Waterfall Plot 是针对 单个样本，按特征贡献从大到小排序"):
                 st.markdown(WATERFALL_PLOT_INFO)
