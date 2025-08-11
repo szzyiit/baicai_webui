@@ -526,7 +526,6 @@ async def run_workflow_builder():
             not st.session_state.baseline_codes
             or not st.session_state.baseline_success
             or not st.session_state.actions
-            or not st.session_state.action_success
         ):
             st.session_state.error_message = "需要先完成基线模型构建和特征工程"
             st.session_state.running = False

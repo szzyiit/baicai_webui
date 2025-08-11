@@ -29,9 +29,7 @@ def ability_navigator():
         - 了解常用人工智能算法
         - 了解人工智能应用场景
         """)
-        if st.button("👉 开始教材学习"):
-            st.session_state.page = "book"
-            st.rerun()
+
 
     elif data_type == "小测验":
         st.write("👉 采用个性化的测验，您可以：")
@@ -40,9 +38,7 @@ def ability_navigator():
         - 了解您的学习情况
         - 针对性地互动进行学习
         """)
-        if st.button("👉 开始小测验"):
-            st.session_state.page = "quiz"
-            st.rerun()
+
 
     elif data_type == "计算机视觉":
         st.write("👉 计算机视觉可以帮您完成以下任务：")
@@ -52,9 +48,7 @@ def ability_navigator():
         - 图像分割：精确分析图片中物体的轮廓和区域
         - 人脸识别：检测和识别图片中的人脸
         """)
-        if st.button("👉 开始计算机视觉任务"):
-            st.session_state.page = "vision"
-            st.rerun()
+
 
     elif data_type == "自然语言处理":
         st.write("👉 自然语言处理可以帮您完成以下任务：")
@@ -64,9 +58,7 @@ def ability_navigator():
         - 信息提取：从文本中提取关键信息（如提取人名、地名、关键词）
         - 文本摘要：自动生成文章摘要
         """)
-        if st.button("👉 开始自然语言处理任务"):
-            st.session_state.page = "nlp"
-            st.rerun()
+
 
     elif data_type == "表格数据处理":
         st.write("👉 表格数据处理包括以下两类任务：")
@@ -79,9 +71,6 @@ def ability_navigator():
             - 分类预测：预测客户流失、信用评估等
             - 数据聚类：自动对数据分组
             """)
-            if st.button("👉 开始机器学习任务"):
-                st.session_state.page = "ml"
-                st.rerun()
 
         with col2:
             st.info("""
@@ -90,9 +79,7 @@ def ability_navigator():
             - 内容推荐：视频、音乐、文章推荐
             - 社交推荐：好友推荐、兴趣组推荐
             """)
-            if st.button("👉 开始推荐系统任务"):
-                st.session_state.page = "collab"
-                st.rerun()
+
 
     else:
         # 设置页面布局，减少边距
@@ -244,158 +231,15 @@ def show():
         st.rerun()
 
     # 显示导航助手或主页内容
-    tab1, tab2, tab3, tab4 = st.tabs(["🧭 任务导航", "📚 章节目录", "🔍 功能导航", "📚 平台介绍"])
+    tab1, tab2, tab3 = st.tabs(["🧭 任务导航", "🔍 功能导航", "📚 平台介绍"])
 
     with tab1:
         button_graph()
 
     with tab2:
-        st.subheader("📚 章节目录")
-
-        # 创建章节数据结构
-        chapters = [
-            {
-                "title": "人工智能基础",
-                "icon": "🧠",
-                "sections": [
-                    {"title": "什么是人工智能", "duration": "15分钟", "difficulty": "入门"},
-                    {"title": "人工智能的历史", "duration": "20分钟", "difficulty": "入门"},
-                    {"title": "机器学习vs深度学习", "duration": "25分钟", "difficulty": "入门"},
-                    {"title": "人工智能的应用场景", "duration": "30分钟", "difficulty": "入门"},
-                ],
-            },
-            {
-                "title": "机器学习基础",
-                "icon": "🤖",
-                "sections": [
-                    {"title": "机器学习概述", "duration": "20分钟", "difficulty": "入门"},
-                    {"title": "监督学习", "duration": "30分钟", "difficulty": "基础"},
-                    {"title": "无监督学习", "duration": "30分钟", "difficulty": "基础"},
-                    {"title": "强化学习", "duration": "35分钟", "difficulty": "进阶"},
-                ],
-            },
-            {
-                "title": "深度学习入门",
-                "icon": "🧮",
-                "sections": [
-                    {"title": "神经网络基础", "duration": "40分钟", "difficulty": "基础"},
-                    {"title": "卷积神经网络", "duration": "45分钟", "difficulty": "进阶"},
-                    {"title": "循环神经网络", "duration": "45分钟", "difficulty": "进阶"},
-                    {"title": "Transformer架构", "duration": "50分钟", "difficulty": "高级"},
-                ],
-            },
-            {
-                "title": "计算机视觉应用",
-                "icon": "👁️",
-                "sections": [
-                    {"title": "图像分类入门", "duration": "30分钟", "difficulty": "基础"},
-                    {"title": "目标检测技术", "duration": "40分钟", "difficulty": "进阶"},
-                    {"title": "图像分割", "duration": "45分钟", "difficulty": "进阶"},
-                    {"title": "计算机视觉实战", "duration": "60分钟", "difficulty": "高级"},
-                ],
-            },
-            {
-                "title": "自然语言处理",
-                "icon": "🔤",
-                "sections": [
-                    {"title": "文本处理基础", "duration": "25分钟", "difficulty": "基础"},
-                    {"title": "词嵌入技术", "duration": "35分钟", "difficulty": "进阶"},
-                    {"title": "序列模型与注意力机制", "duration": "50分钟", "difficulty": "高级"},
-                    {"title": "大型语言模型", "duration": "60分钟", "difficulty": "高级"},
-                ],
-            },
-            {
-                "title": "推荐系统",
-                "icon": "🎯",
-                "sections": [
-                    {"title": "推荐系统概述", "duration": "20分钟", "difficulty": "基础"},
-                    {"title": "协同过滤算法", "duration": "35分钟", "difficulty": "进阶"},
-                    {"title": "基于内容的推荐", "duration": "30分钟", "difficulty": "进阶"},
-                    {"title": "混合推荐系统", "duration": "40分钟", "difficulty": "高级"},
-                ],
-            },
-        ]
-
-        # 创建难度标签样式映射
-        difficulty_styles = {
-            "入门": "background-color: #a8e6cf; padding: 2px 8px; border-radius: 10px; font-size: 0.8em;",
-            "基础": "background-color: #dcedc1; padding: 2px 8px; border-radius: 10px; font-size: 0.8em;",
-            "进阶": "background-color: #ffd3b6; padding: 2px 8px; border-radius: 10px; font-size: 0.8em;",
-            "高级": "background-color: #ffaaa5; padding: 2px 8px; border-radius: 10px; font-size: 0.8em;",
-        }
-
-        # 创建交互式章节导航
-        selected_chapter = st.selectbox(
-            "选择学习章节",
-            options=range(len(chapters)),
-            format_func=lambda x: f"{chapters[x]['icon']} {chapters[x]['title']}",
-        )
-
-        # 显示所选章节的内容
-        st.write(f"### {chapters[selected_chapter]['icon']} {chapters[selected_chapter]['title']}")
-
-        # 创建进度条
-        total_sections = len(chapters[selected_chapter]["sections"])
-        completed_sections = 0  # 假设用户还未完成任何章节
-        progress = st.progress(completed_sections / total_sections)
-        st.caption(f"学习进度: {completed_sections}/{total_sections} 完成")
-
-        # 展示课程内容
-        for i, section in enumerate(chapters[selected_chapter]["sections"]):
-            with st.expander(f"{i + 1}. {section['title']}"):
-                col1, col2, col3 = st.columns([5, 2, 2])
-
-                with col1:
-                    st.write("📝 **课程内容简介**")
-                    # st.write(f"这是关于"{section['title']}"的学习内容，通过本节学习，您将掌握相关的核心概念和应用方法。")
-
-                with col2:
-                    st.write("⏱️ **预计用时**")
-                    st.write(section["duration"])
-
-                with col3:
-                    st.write("📊 **难度等级**")
-                    st.markdown(
-                        f"<span style='{difficulty_styles[section['difficulty']]}'>{section['difficulty']}</span>",
-                        unsafe_allow_html=True,
-                    )
-
-                # 添加学习和测验按钮
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button(f"📚 开始学习 #{i + 1}", key=f"learn_{selected_chapter}_{i}"):
-                        st.session_state.page = "lesson"
-                        st.session_state.current_chapter = selected_chapter
-                        st.session_state.current_section = i
-                        st.rerun()
-                with col2:
-                    if st.button(f"✅ 章节测验 #{i + 1}", key=f"quiz_{selected_chapter}_{i}"):
-                        st.session_state.page = "section_quiz"
-                        st.session_state.current_chapter = selected_chapter
-                        st.session_state.current_section = i
-                        st.rerun()
-
-        # 添加资源下载区
-        st.write("### 📥 章节资源")
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.markdown("""
-            **可下载资源:**
-            * 📄 章节PPT
-            * 📊 实验数据集
-            * 📓 练习题与答案
-            * 🧮 代码示例
-            """)
-
-        with col2:
-            if st.button("📦 下载全部资源"):
-                st.success("资源包下载已开始，请稍候...")
-
-    with tab3:
         ability_navigator()
 
-    with tab4:
+    with tab3:
         st.markdown("""
         ### 🚀 快速开始
 
@@ -432,33 +276,29 @@ def show():
 
         # 添加示例数据集
         st.subheader("🎯 快速入门项目")
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
 
         with col1:
             st.info("""
-            ### 🖼️ 计算机视觉入门
+            ### 计算机视觉
 
             **经典项目**
             - MNIST数字识别
               手写数字自动识别，准确率95%+
-            - CIFAR-10物体识别
-              10类物体分类，可视化结果
 
             **适合人群**
             - 图像处理初学者
             - 计算机视觉爱好者
             - 深度学习入门者
 
-            **预计耗时：** 15-30分钟
+            **预计耗时：** 3-5分钟
             """)
 
         with col2:
             st.info("""
-            ### 📝 自然语言处理入门
+            ### 自然语言处理
 
             **经典项目**
-            - 新闻分类
-              自动对新闻进行多分类，准确率90%+
             - 情感分析
               分析商品评论情感倾向
 
@@ -467,25 +307,40 @@ def show():
             - NLP技术探索者
             - 数据分析师
 
-            **预计耗时：** 20-40分钟
+            **预计耗时：** 3-5分钟
             """)
 
         with col3:
             st.info("""
-            ### 🎯 推荐系统入门
+            ### 推荐系统
 
             **经典项目**
             - 电影推荐
               基于协同过滤的个性化推荐
-            - 图书推荐
-              结合内容的混合推荐系统
 
             **适合人群**
             - 推荐算法初学者
             - 电商从业者
             - 产品经理
 
-            **预计耗时：** 30-45分钟
+            **预计耗时：** 3-5分钟
             """)
+
+        with col4:
+            st.info("""
+            ### 机器学习
+
+            **经典项目**
+            - 鸢尾花分类
+              鸢尾花分类，准确率95%+
+
+            **适合人群**
+            - 传统机器学习初学者
+            - 数据分析爱好者
+            - 机器学习入门者
+
+            **预计耗时：** 3-5分钟
+            """)
+
 
 show()

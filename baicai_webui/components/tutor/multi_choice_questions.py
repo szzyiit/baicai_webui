@@ -11,8 +11,8 @@ from langgraph.types import Command
 
 
 @st.cache_resource
-def create_tutor(config: Dict, llm: LLM):
-    return TutorBuilder(config=config, memory=MemorySaver(), llm=llm)
+def create_tutor(config: Dict, _llm: LLM):
+    return TutorBuilder(config=config, memory=MemorySaver(), llm=_llm)
 
 
 def multi_choice_questions(

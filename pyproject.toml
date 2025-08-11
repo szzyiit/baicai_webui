@@ -16,9 +16,11 @@ streamlit-flow-component = ">=1.6.1,<2.0.0"
 baicai-dev = { path = "../baicai_dev", develop = true }
 
 [tool.poetry.group.dev]
+optional = true
 
 [tool.poetry.group.dev.dependencies]
 watchdog = "^6.0.0"
+pyinstaller = "^6.15.0"
 
 [tool.poetry.group.tutor]
 
