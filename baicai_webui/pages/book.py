@@ -1,8 +1,10 @@
-from pathlib import Path
-import re
 import base64
+import re
+from pathlib import Path
 
 import streamlit as st
+from streamlit_markmap import markmap
+from streamlit_mermaid import st_mermaid
 
 from baicai_webui.components.model import get_page_llm
 
@@ -153,6 +155,544 @@ def process_markdown_images(content, book_path):
     return processed_content
 
 
+def get_callout_css():
+    """返回 callout 的 CSS 样式"""
+    return """
+    <style>
+    .callout {
+        margin: 1rem 0;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background-color: #ffffff;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .callout-header {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+        font-size: 1.1em;
+        line-height: 1.4;
+        min-height: 1.5em;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        width: 100%;
+        box-sizing: border-box;
+        position: relative;
+        overflow: visible;
+    }
+    
+    .callout-icon {
+        margin-right: 0;
+        font-size: 1.3em;
+        flex-shrink: 0;
+    }
+    
+    .callout-title {
+        font-weight: 600;
+        color: inherit;
+        display: inline-block;
+        margin: 0;
+        padding: 0;
+        line-height: 1.4;
+        flex: 1;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
+        text-align: left;
+        white-space: normal;
+        min-width: 0;
+        box-sizing: border-box;
+        overflow: visible;
+        text-overflow: clip;
+    }
+    
+    .callout-content {
+        color: #374151;
+        line-height: 1.7;
+        margin: 0;
+    }
+    
+    .callout-content p {
+        margin: 0.5rem 0;
+    }
+    
+    .callout-content p:first-child {
+        margin-top: 0;
+    }
+    
+    .callout-content p:last-child {
+        margin-bottom: 0;
+    }
+    
+    .callout-info { 
+        background-color: #eff6ff; 
+        border-left-color: #3b82f6; 
+        border-color: #dbeafe;
+    }
+    .callout-note { 
+        background-color: #ecfdf5; 
+        border-left-color: #059669; 
+        border-color: #a7f3d0;
+    }
+    .callout-warning { 
+        background-color: #fffbeb; 
+        border-left-color: #d97706; 
+        border-color: #fed7aa;
+    }
+    .callout-error { 
+        background-color: #fef2f2; 
+        border-left-color: #dc2626; 
+        border-color: #fecaca;
+    }
+    .callout-success { 
+        background-color: #ecfdf5; 
+        border-left-color: #059669; 
+        border-color: #a7f3d0;
+    }
+    .callout-question { 
+        background-color: #f3f4f6; 
+        border-left-color: #7c3aed; 
+        border-color: #ddd6fe;
+    }
+    .callout-todo { 
+        background-color: #f0fdf4; 
+        border-left-color: #059669; 
+        border-color: #bbf7d0;
+    }
+    .callout-tip { 
+        background-color: #f0f9ff; 
+        border-left-color: #0891b2; 
+        border-color: #7dd3fc;
+    }
+    .callout-abstract { 
+        background-color: #fef3c7; 
+        border-left-color: #7c2d12; 
+        border-color: #fcd34d;
+    }
+    .callout-quote { 
+        background-color: #f9fafb; 
+        border-left-color: #6b7280; 
+        border-color: #d1d5db;
+    }
+    .callout-example { 
+        background-color: #faf5ff; 
+        border-left-color: #7c3aed; 
+        border-color: #c4b5fd;
+    }
+    
+    .callout-info .callout-header { color: #3b82f6; }
+    .callout-note .callout-header { color: #059669; }
+    .callout-warning .callout-header { color: #d97706; }
+    .callout-error .callout-header { color: #dc2626; }
+    .callout-success .callout-header { color: #059669; }
+    .callout-question .callout-header { color: #7c3aed; }
+    .callout-todo .callout-header { color: #059669; }
+    .callout-tip .callout-header { color: #0891b2; }
+    .callout-abstract .callout-header { color: #7c2d12; }
+    .callout-quote .callout-header { color: #6b7280; }
+    .callout-example .callout-header { color: #7c3aed; }
+    
+    /* 确保在 Streamlit 中正确显示 */
+    .callout * {
+        box-sizing: border-box;
+    }
+    
+    .callout img {
+        max-width: 100%;
+        height: auto;
+        display: inline-block;
+        vertical-align: middle;
+    }
+    
+    .callout-content img {
+        margin: 0.5rem 0;
+    }
+    
+    /* 确保列表在 callout 中正确显示 */
+    .callout-content ul,
+    .callout-content ol {
+        margin: 0.5rem 0;
+        padding-left: 1.5rem;
+    }
+    
+    .callout-content li {
+        margin: 0.25rem 0;
+        line-height: 1.5;
+    }
+    
+    .callout-content ul li {
+        list-style-type: disc;
+    }
+    
+    .callout-content ol li {
+        list-style-type: decimal;
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        .callout {
+            margin: 0.5rem 0;
+            padding: 0.75rem;
+        }
+        
+        .callout-header {
+            font-size: 1em;
+        }
+        
+        .callout-icon {
+            font-size: 1.1em;
+        }
+    }
+    </style>
+    """
+
+
+def process_obsidian_callouts(content):
+    """处理 Obsidian 特有的 callout 格式，转换为美观的 HTML 样式"""
+    if not content:
+        return content
+
+    # 改进的 Obsidian callout 正则表达式模式
+    # 匹配 > [!type] title 格式，支持多行内容，标题可以为空
+    callout_pattern = r"> \[!([^\]]+)\]\s*([^\n]*?)(?:\n|$)((?:> [^\n]*\n?)*)"
+
+    def replace_callout(match):
+        callout_type = match.group(1).lower()
+        title = match.group(2).strip()
+        content_lines = match.group(3).strip()
+
+        # 处理多行内容，移除每行开头的 "> " 并合并
+        content_text = ""
+        if content_lines:
+            content_lines_list = content_lines.split("\n")
+            processed_lines = []
+            for line in content_lines_list:
+                line = line.strip()
+                if line.startswith("> "):
+                    # 移除 "> " 前缀
+                    content = line[2:].strip()
+                    # 如果内容不为空，添加到处理后的行中
+                    if content:
+                        processed_lines.append(content)
+                    # 如果内容为空（只有 ">" 的空白行），添加一个空行来保持格式
+                    else:
+                        processed_lines.append("")
+                elif line:
+                    processed_lines.append(line)
+            # 过滤掉连续的空行，保持格式整洁
+            filtered_lines = []
+            for i, line in enumerate(processed_lines):
+                if line.strip() or (i > 0 and processed_lines[i - 1].strip()):
+                    filtered_lines.append(line)
+
+            # 直接处理callout内容中的列表，转换为HTML格式
+            content_text = process_lists_in_callout("\n".join(filtered_lines))
+
+        # 如果内容为空，提供默认内容
+        if not content_text.strip():
+            content_text = "这是一个 " + callout_type + " 提示框。"
+
+        # 定义不同类型的 callout 样式
+        callout_styles = {
+            "info": {"icon": "ℹ️", "color": "#3b82f6", "bg_color": "#eff6ff", "border_color": "#dbeafe"},
+            "note": {"icon": "📝", "color": "#059669", "bg_color": "#ecfdf5", "border_color": "#a7f3d0"},
+            "warning": {"icon": "⚠️", "color": "#d97706", "bg_color": "#fffbeb", "border_color": "#fed7aa"},
+            "error": {"icon": "❌", "color": "#dc2626", "bg_color": "#fef2f2", "border_color": "#fecaca"},
+            "success": {"icon": "✅", "color": "#059669", "bg_color": "#ecfdf5", "border_color": "#a7f3d0"},
+            "question": {"icon": "❓", "color": "#7c3aed", "bg_color": "#f3f4f6", "border_color": "#ddd6fe"},
+            "todo": {"icon": "📋", "color": "#059669", "bg_color": "#f0fdf4", "border_color": "#bbf7d0"},
+            "tip": {"icon": "💡", "color": "#0891b2", "bg_color": "#f0f9ff", "border_color": "#7dd3fc"},
+            "abstract": {"icon": "📚", "color": "#7c2d12", "bg_color": "#fef3c7", "border_color": "#fcd34d"},
+            "quote": {"icon": "💬", "color": "#6b7280", "bg_color": "#f9fafb", "border_color": "#d1d5db"},
+            "example": {"icon": "🔍", "color": "#7c3aed", "bg_color": "#faf5ff", "border_color": "#c4b5fd"},
+        }
+
+        # 获取样式，如果没有找到对应的类型，使用默认样式
+        style = callout_styles.get(callout_type, callout_styles["info"])
+
+        # 构建 HTML，使用 CSS 类，确保标题正确显示
+        display_title = title if title else callout_type.title()
+        # 使用正确的HTML结构，确保标签正确关闭，并在后面添加换行符
+        html = f'<div class="callout callout-{callout_type}"><div class="callout-header"><span class="callout-icon">{style["icon"]}</span><span class="callout-title">{display_title}</span></div><div class="callout-content">{content_text}</div></div>\n'
+
+        return html
+
+    # 使用正则表达式替换 callout
+    processed_content = re.sub(callout_pattern, replace_callout, content, flags=re.DOTALL)
+
+    return processed_content
+
+
+def process_lists_in_callout(content):
+    """在callout内容中处理列表格式，转换为HTML格式以保持一致性"""
+    if not content:
+        return content
+
+    lines = content.split("\n")
+    result_lines = []
+    i = 0
+
+    while i < len(lines):
+        line = lines[i]
+
+        # 检查是否在表格中（包含 | 符号的行）
+        if "|" in line:
+            result_lines.append(line)
+            i += 1
+            continue
+
+        # 检查是否是有序列表
+        if re.match(r"^\s*\d+\.\s", line):
+            # 收集连续的有序列表项
+            list_items = []
+            while i < len(lines) and re.match(r"^\s*\d+\.\s", lines[i]):
+                item_content = re.sub(r"^\s*\d+\.\s", "", lines[i])
+                list_items.append(f'<li style="margin: 0.25rem 0;">{item_content}</li>')
+                i += 1
+
+            if list_items:
+                result_lines.append('<ol style="margin: 0.5rem 0; padding-left: 1.5rem;">')
+                result_lines.extend(list_items)
+                result_lines.append("</ol>")
+
+        # 检查是否是无序列表
+        elif re.match(r"^\s*[-*]\s", line):
+            # 收集连续的无序列表项
+            list_items = []
+            while i < len(lines) and re.match(r"^\s*[-*]\s", lines[i]):
+                item_content = re.sub(r"^\s*[-*]\s", "", lines[i])
+                list_items.append(f'<li style="margin: 0.25rem 0;">{item_content}</li>')
+                i += 1
+
+            if list_items:
+                result_lines.append('<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">')
+                result_lines.extend(list_items)
+                result_lines.append("</ul>")
+
+        # 普通行，直接添加
+        else:
+            result_lines.append(line)
+            i += 1
+
+    return "\n".join(result_lines)
+
+
+def process_lists_in_text(content):
+    """在文本中处理列表格式，保持Markdown格式而不是转换为HTML"""
+    if not content:
+        return content
+
+    lines = content.split("\n")
+    result_lines = []
+    i = 0
+
+    while i < len(lines):
+        line = lines[i]
+
+        # 检查是否在表格中（包含 | 符号的行）
+        if "|" in line:
+            result_lines.append(line)
+            i += 1
+            continue
+
+        # 检查是否是有序列表
+        if re.match(r"^\s*\d+\.\s", line):
+            # 收集连续的有序列表项，保持Markdown格式
+            while i < len(lines) and re.match(r"^\s*\d+\.\s", lines[i]):
+                # 保持原始的Markdown格式，不转换为HTML
+                result_lines.append(lines[i])
+                i += 1
+
+        # 检查是否是无序列表
+        elif re.match(r"^\s*[-*]\s", line):
+            # 收集连续的无序列表项，保持Markdown格式
+            while i < len(lines) and re.match(r"^\s*[-*]\s", lines[i]):
+                # 保持原始的Markdown格式，不转换为HTML
+                result_lines.append(lines[i])
+                i += 1
+
+        # 普通行，直接添加
+        else:
+            result_lines.append(line)
+            i += 1
+
+    return "\n".join(result_lines)
+
+
+def process_obsidian_frontmatter(content):
+    """处理 Obsidian 的 frontmatter（文件头部元数据）"""
+    if not content:
+        return content
+
+    # 匹配 frontmatter 格式：以 --- 开始和结束的 YAML 内容，直接删除
+    frontmatter_pattern = r"^---\s*\n(.*?)\n---\s*\n"
+
+    # 直接删除 frontmatter，不显示任何内容
+    content = re.sub(frontmatter_pattern, "", content, flags=re.DOTALL)
+
+    return content
+
+
+def process_obsidian_special_formats(content):
+    """处理其他 Obsidian 特有的格式"""
+    if not content:
+        return content
+
+    # 处理 markmap 格式
+    markmap_pattern = r"```markmap\s*\n(.*?)\n```"
+
+    def replace_markmap(match):
+        markmap_content = match.group(1).strip()
+        # 返回一个特殊的标记，稍后在显示内容时处理
+        return f"__MARKMAP_PLACEHOLDER__{markmap_content}__END_MARKMAP__"
+
+    # 处理 mermaid 格式
+    mermaid_pattern = r"```mermaid\s*\n(.*?)\n```"
+
+    def replace_mermaid(match):
+        mermaid_content = match.group(1).strip()
+        # 返回一个特殊的标记，稍后在显示内容时处理
+        return f"__MERMAID_PLACEHOLDER__{mermaid_content}__END_MERMAID__"
+
+    # 应用转换
+    content = re.sub(markmap_pattern, replace_markmap, content, flags=re.DOTALL)
+    content = re.sub(mermaid_pattern, replace_mermaid, content, flags=re.DOTALL)
+
+    return content
+
+
+def process_obsidian_tables(content):
+    """处理 Obsidian 的表格格式，使其在 Streamlit 中显示得更好"""
+    if not content:
+        return content
+
+    # 匹配 Markdown 表格
+    table_pattern = r"(\|[^\n]*\|\n\|[^\n]*\|\n(?:\|[^\n]*\|\n?)+)"
+
+    def replace_table(match):
+        table_content = match.group(1).strip()
+        lines = table_content.split("\n")
+
+        if len(lines) < 3:  # 至少需要表头、分隔行和一行数据
+            return match.group(0)
+
+        # 解析表格
+        headers = []
+        data_rows = []
+
+        for i, line in enumerate(lines):
+            if i == 0:  # 表头
+                headers = [cell.strip() for cell in line.split("|")[1:-1]]
+            elif i == 1:  # 分隔行，跳过
+                continue
+            else:  # 数据行
+                row = [cell.strip() for cell in line.split("|")[1:-1]]
+                if len(row) == len(headers):  # 确保行数据与表头匹配
+                    data_rows.append(row)
+
+        if not headers or not data_rows:
+            return match.group(0)
+
+        # 构建 HTML 表格
+        html_parts = ['<div style="overflow-x: auto; margin: 1rem 0;">']
+        html_parts.append(
+            '<table style="border-collapse: collapse; width: 100%; border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden;">'
+        )
+
+        # 表头
+        html_parts.append('<thead style="background-color: #f9fafb;">')
+        html_parts.append("<tr>")
+        for header in headers:
+            html_parts.append(
+                f'<th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">{header}</th>'
+            )
+        html_parts.append("</tr>")
+        html_parts.append("</thead>")
+
+        # 数据行
+        html_parts.append("<tbody>")
+        for i, row in enumerate(data_rows):
+            bg_color = "#ffffff" if i % 2 == 0 else "#f9fafb"
+            html_parts.append(f'<tr style="background-color: {bg_color};">')
+            for cell in row:
+                html_parts.append(
+                    f'<td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb; color: #374151;">{cell}</td>'
+                )
+            html_parts.append("</tr>")
+        html_parts.append("</tbody>")
+
+        html_parts.append("</table>")
+        html_parts.append("</div>")
+
+        return "".join(html_parts)
+
+    # 应用转换
+    content = re.sub(table_pattern, replace_table, content, flags=re.MULTILINE)
+
+    return content
+
+
+def process_obsidian_links(content):
+    """处理 Obsidian 的链接格式，包括内部 md 文件链接和外部链接"""
+    if not content:
+        return content
+
+    # 处理 Markdown 链接 [文本](链接)
+    link_pattern = r"\[([^\]]+)\]\(([^)]+)\)"
+
+    def replace_link(match):
+        text = match.group(1)
+        url = match.group(2)
+
+        # 如果是图片链接，保持原样
+        if url.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp")):
+            return match.group(0)
+
+        # 如果是 .md 文件链接，转换为内部章节跳转
+        if url.lower().endswith(".md"):
+            # 移除 .md 扩展名，只保留文件名
+            chapter_name = url.replace(".md", "")
+            # 构建跳转链接，使用当前页面的 book 路径，确保没有 .md 扩展名
+            jump_url = f"/book?chapter={chapter_name}"
+            return f'<a href="{jump_url}" style="color: #3b82f6; text-decoration: underline; cursor: pointer;" title="跳转到: {chapter_name}">{text} 📖</a>'
+
+        # 如果是其他文件链接（如 .txt, .pdf），显示为文件链接
+        if url.lower().endswith((".txt", ".pdf")):
+            return f'<span style="color: #3b82f6; text-decoration: underline; cursor: pointer;" title="文件链接: {url}">{text} 📄</span>'
+
+        # 外部链接添加图标和样式
+        return f'<a href="{url}" target="_blank" style="color: #3b82f6; text-decoration: underline;">{text} 🔗</a>'
+
+    # 应用转换
+    content = re.sub(link_pattern, replace_link, content)
+
+    return content
+
+
+def filter_exercise_section(content):
+    """过滤掉 '## 课后练习' 及其后面的所有内容"""
+    if not content:
+        return content
+
+    # 查找 "## 课后练习" 的位置
+    exercise_pattern = r"## 课后练习"
+    match = re.search(exercise_pattern, content)
+
+    if match:
+        # 找到匹配位置，截取到该位置之前的内容
+        start_pos = match.start()
+        filtered_content = content[:start_pos].strip()
+        return filtered_content
+
+    # 如果没有找到，返回原内容
+    return content
+
+
 def load_chapter_content(md_path, book_path):
     """加载章节内容并处理图片"""
     if not md_path.exists():
@@ -160,8 +700,22 @@ def load_chapter_content(md_path, book_path):
 
     try:
         content = md_path.read_text(encoding="utf-8")
+        # 处理 Obsidian frontmatter
+        processed_content = process_obsidian_frontmatter(content)
+        # 过滤掉课后练习部分
+        processed_content = filter_exercise_section(processed_content)
         # 处理图片
-        processed_content = process_markdown_images(content, book_path)
+        processed_content = process_markdown_images(processed_content, book_path)
+        # 处理 Obsidian callouts（包含列表处理）
+        processed_content = process_obsidian_callouts(processed_content)
+        # 处理其他 Markdown 列表（不在callout中的）
+        processed_content = process_lists_in_text(processed_content)
+        # 处理其他 Obsidian 特殊格式
+        processed_content = process_obsidian_special_formats(processed_content)
+        # 处理 Obsidian 链接
+        processed_content = process_obsidian_links(processed_content)
+        # 处理 Obsidian 表格
+        processed_content = process_obsidian_tables(processed_content)
         return processed_content, None
     except Exception as exc:
         return None, f"读取文档失败: {exc}"
@@ -170,12 +724,8 @@ def load_chapter_content(md_path, book_path):
 def show():
     st.title("AI 入门教材学习")
 
-    # Get configured LLM instance with configuration UI
-    _llm = get_page_llm(
-        config_id="book",
-        title="Book 模型配置",
-        info_text="配置用于 Book 功能的模型参数",
-    )
+    # 注入 callout 的 CSS 样式
+    st.markdown(get_callout_css(), unsafe_allow_html=True)
 
     # Get portable path to AI_intro_book folder
     current_file = Path(__file__)
@@ -194,87 +744,85 @@ def show():
         st.warning("AI_intro_book 文件夹中没有找到可用的章节文件。")
         return
 
+    # 创建章节名称列表（用于下拉菜单），去除 .md 扩展名
+    chapter_names = [chapter.name.replace(".md", "") for chapter in chapters]
+
+    # 从 URL 参数获取当前章节，如果没有则使用默认值
+    default_chapter = chapter_names[0] if chapter_names else ""
+    current_chapter = st.query_params.get("chapter", default_chapter)
+
+    # 如果 URL 中的章节不在可用章节列表中，使用默认章节
+    if current_chapter not in chapter_names:
+        current_chapter = default_chapter
+
+    # 获取当前章节在列表中的索引
+    current_index = chapter_names.index(current_chapter) if current_chapter in chapter_names else 0
+
     # 章节选择器
     st.subheader("选择要学习的章节")
 
-    # 创建章节名称列表（用于下拉菜单）
-    chapter_names = [chapter.name for chapter in chapters]
-
-    # 添加默认选项
-    default_index = 0  # 默认选择第一章
-
-    # 创建下拉菜单
+    # 创建下拉菜单，使用当前选中的章节
     selected_chapter_name = st.selectbox(
-        "请选择章节：", options=chapter_names, index=default_index, help="从下拉菜单中选择要阅读的章节"
+        "请选择章节：", options=chapter_names, index=current_index, help="从下拉菜单中选择要阅读的章节"
     )
 
+    # 如果选择的章节与当前 URL 参数不同，更新 URL
+    if selected_chapter_name != current_chapter:
+        st.query_params["chapter"] = selected_chapter_name
+        st.rerun()
+
     # 找到选中的章节文件
-    selected_chapter = next((chapter for chapter in chapters if chapter.name == selected_chapter_name), None)
+    selected_chapter = next(
+        (chapter for chapter in chapters if chapter.name.replace(".md", "") == selected_chapter_name), None
+    )
 
     # 显示选中的章节内容
     if selected_chapter:
-        st.subheader(f"{selected_chapter_name}")
+        # 显示章节标题
+        st.subheader(selected_chapter_name)
 
         # 加载章节内容并处理图片
         content, error = load_chapter_content(selected_chapter, book_path)
 
         if content:
-            # 显示章节内容（包含处理后的图片）
-            st.markdown(content, unsafe_allow_html=True)
+            # 处理 markmap 和 mermaid 占位符并渲染内容
+            processed_content = content
 
-            # 添加章节导航
-            st.markdown("---")
-            st.markdown("### 章节导航")
+            # 首先处理 markmap 占位符
+            markmap_placeholder_pattern = r"__MARKMAP_PLACEHOLDER__(.*?)__END_MARKMAP__"
+            mermaid_placeholder_pattern = r"__MERMAID_PLACEHOLDER__(.*?)__END_MERMAID__"
 
-            # 显示当前章节在列表中的位置
-            current_index = chapter_names.index(selected_chapter_name)
-            total_chapters = len(chapters)
+            # 分割内容，分别处理 markmap 和普通内容
+            markmap_parts = re.split(markmap_placeholder_pattern, processed_content, flags=re.DOTALL)
 
-            col1, col2, col3, col4 = st.columns(4)
+            # 用于生成唯一 key 的计数器
+            mermaid_counter = 0
+            markmap_counter = 0
 
-            with col1:
-                if current_index > 0:
-                    prev_chapter = chapter_names[current_index - 1]
-                    if st.button(f"上一章: {prev_chapter}", key="prev_btn"):
-                        st.session_state.selected_chapter = prev_chapter
-                        st.rerun()
-                else:
-                    st.button("上一章", disabled=True, key="prev_btn_disabled")
+            # 处理每个部分，检查是否包含 mermaid 占位符
+            for i, part in enumerate(markmap_parts):
+                if i % 2 == 0:  # 普通内容，需要进一步检查是否包含 mermaid
+                    if part.strip():
+                        # 检查这部分是否包含 mermaid 占位符
+                        mermaid_parts = re.split(mermaid_placeholder_pattern, part, flags=re.DOTALL)
 
-            with col2:
-                st.info(f"第 {current_index + 1} 章 / 共 {total_chapters} 章")
-
-            with col3:
-                if current_index < total_chapters - 1:
-                    next_chapter = chapter_names[current_index + 1]
-                    if st.button(f"下一章: {next_chapter}", key="next_btn"):
-                        st.session_state.selected_chapter = next_chapter
-                        st.rerun()
-                else:
-                    st.button("下一章", disabled=True, key="next_btn_disabled")
-
-            with col4:
-                if st.button("刷新内容", key="refresh_btn"):
-                    st.rerun()
+                        # 交替显示内容和 mermaid
+                        for j, mermaid_part in enumerate(mermaid_parts):
+                            if j % 2 == 0:  # 普通内容
+                                if mermaid_part.strip():
+                                    st.markdown(mermaid_part, unsafe_allow_html=True)
+                            else:  # mermaid 内容
+                                if mermaid_part.strip():
+                                    mermaid_counter += 1
+                                    st_mermaid(mermaid_part.strip(), height=400, key=f"mermaid_{mermaid_counter}")
+                else:  # markmap 内容
+                    if part.strip():
+                        markmap_counter += 1
+                        # markmap 函数不支持 key 参数，但我们可以通过其他方式确保唯一性
+                        markmap(part.strip(), height=400)
 
         else:
             st.error(f"{error}")
 
-    # 显示所有可用章节列表
-    with st.expander("查看所有可用章节", expanded=False):
-        st.markdown("### 完整章节列表")
-        for i, chapter in enumerate(chapters, 1):
-            chapter_num = extract_chapter_number(chapter.name)
-            if chapter.name == selected_chapter_name:
-                st.markdown(f"**{chapter_num}. {chapter.name}** (当前阅读)")
-            else:
-                st.markdown(f"{chapter_num}. {chapter.name}")
-
-        st.info(f"共找到 {len(chapters)} 个章节文件")
-
-
-# 初始化会话状态
-if "selected_chapter" not in st.session_state:
-    st.session_state.selected_chapter = None
 
 show()

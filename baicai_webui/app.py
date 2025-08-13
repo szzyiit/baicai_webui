@@ -28,10 +28,7 @@ else:
     ]
 
 
-
 # Set up navigation
 pg = st.navigation(pages)
-st.set_page_config(
-    page_title="白菜人工智能平台", page_icon="🥬", layout="wide", initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="白菜人工智能平台", page_icon="🥬", layout="wide", initial_sidebar_state="expanded")
 pg.run()
