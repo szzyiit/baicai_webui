@@ -5,6 +5,7 @@ from pathlib import Path
 import streamlit as st
 from streamlit_markmap import markmap
 from streamlit_mermaid import st_mermaid
+from streamlit_pdf_viewer import pdf_viewer
 
 from baicai_webui.components.model import get_page_llm
 
@@ -140,6 +141,10 @@ def process_markdown_images(content, book_path):
                             return svg_content
                         except Exception:
                             return f"<p><strong>SVG 加载失败:</strong> {alt_text}</p>"
+
+                elif file_ext == ".pdf":
+                    # 对于 PDF 文件，返回一个特殊的标记，稍后处理
+                    return f"__PDF_PLACEHOLDER__{absolute_path}__END_PDF__"
 
                 else:
                     return f"<p><strong>不支持的图片格式:</strong> {alt_text} ({file_ext})</p>"
@@ -559,9 +564,18 @@ def process_obsidian_special_formats(content):
         # 返回一个特殊的标记，稍后在显示内容时处理
         return f"__MERMAID_PLACEHOLDER__{mermaid_content}__END_MERMAID__"
 
+    # 处理 PDF 格式
+    pdf_pattern = r"__PDF_PLACEHOLDER__(.*?)__END_PDF__"
+
+    def replace_pdf(match):
+        pdf_path = match.group(1).strip()
+        # 返回一个特殊的标记，稍后在显示内容时处理
+        return f"__PDF_PLACEHOLDER__{pdf_path}__END_PDF__"
+
     # 应用转换
     content = re.sub(markmap_pattern, replace_markmap, content, flags=re.DOTALL)
     content = re.sub(mermaid_pattern, replace_mermaid, content, flags=re.DOTALL)
+    content = re.sub(pdf_pattern, replace_pdf, content, flags=re.DOTALL)
 
     return content
 
@@ -654,11 +668,19 @@ def process_obsidian_links(content):
             return match.group(0)
 
         # 如果是 .md 文件链接，转换为内部章节跳转
-        if url.lower().endswith(".md"):
-            # 移除 .md 扩展名，只保留文件名
+        if ".md" in url:
+            # 移除 .md 扩展名和锚点部分，只保留文件名
+            # 先移除 .md 扩展名
             chapter_name = url.replace(".md", "")
-            # 构建跳转链接，使用当前页面的 book 路径，确保没有 .md 扩展名
-            jump_url = f"/book?chapter={chapter_name}"
+            # 再移除锚点部分（# 及其后面的内容）
+            if "#" in chapter_name:
+                chapter_name = chapter_name.split("#")[0]
+            # 构建跳转链接，使用当前页面的 book 路径，确保没有 .md 扩展名和锚点
+            # 使用 URL 编码确保中文字符正确传递
+            import urllib.parse
+
+            encoded_chapter = urllib.parse.quote(chapter_name, safe="")
+            jump_url = f"/book?chapter={encoded_chapter}"
             return f'<a href="{jump_url}" style="color: #3b82f6; text-decoration: underline; cursor: pointer;" title="跳转到: {chapter_name}">{text} 📖</a>'
 
         # 如果是其他文件链接（如 .txt, .pdf），显示为文件链接
@@ -751,6 +773,37 @@ def show():
     default_chapter = chapter_names[0] if chapter_names else ""
     current_chapter = st.query_params.get("chapter", default_chapter)
 
+    # 如果从URL参数获取到章节，尝试解码并匹配
+    if current_chapter and current_chapter != default_chapter:
+        try:
+            import urllib.parse
+
+            # 尝试解码URL参数
+            decoded_chapter = urllib.parse.unquote(current_chapter)
+
+            # 尝试精确匹配
+            if decoded_chapter in chapter_names:
+                current_chapter = decoded_chapter
+            else:
+                # 尝试模糊匹配，查找包含该章节名称的章节
+                matched_chapter = None
+                for chapter_name in chapter_names:
+                    if decoded_chapter in chapter_name or chapter_name in decoded_chapter:
+                        matched_chapter = chapter_name
+                        break
+
+                if matched_chapter:
+                    current_chapter = matched_chapter
+                    st.write(f"✅ 模糊匹配成功: `{decoded_chapter}` → `{matched_chapter}`")
+                else:
+                    # 如果仍然无法匹配，使用默认章节
+                    current_chapter = default_chapter
+                    st.write(f"❌ 匹配失败，使用默认章节: `{default_chapter}`")
+        except Exception as e:
+            # 如果解码失败，使用默认章节
+            current_chapter = default_chapter
+            st.write(f"❌ 解码失败: {e}，使用默认章节: `{default_chapter}`")
+
     # 如果 URL 中的章节不在可用章节列表中，使用默认章节
     if current_chapter not in chapter_names:
         current_chapter = default_chapter
@@ -785,32 +838,52 @@ def show():
         content, error = load_chapter_content(selected_chapter, book_path)
 
         if content:
-            # 处理 markmap 和 mermaid 占位符并渲染内容
+            # 处理 markmap、mermaid 和 PDF 占位符并渲染内容
             processed_content = content
 
-            # 首先处理 markmap 占位符
+            # 定义占位符模式
             markmap_placeholder_pattern = r"__MARKMAP_PLACEHOLDER__(.*?)__END_MARKMAP__"
             mermaid_placeholder_pattern = r"__MERMAID_PLACEHOLDER__(.*?)__END_MERMAID__"
-
-            # 分割内容，分别处理 markmap 和普通内容
-            markmap_parts = re.split(markmap_placeholder_pattern, processed_content, flags=re.DOTALL)
+            pdf_placeholder_pattern = r"__PDF_PLACEHOLDER__(.*?)__END_PDF__"
 
             # 用于生成唯一 key 的计数器
             mermaid_counter = 0
             markmap_counter = 0
+            pdf_counter = 0
 
-            # 处理每个部分，检查是否包含 mermaid 占位符
+            # 首先分割 markmap 占位符
+            markmap_parts = re.split(markmap_placeholder_pattern, processed_content, flags=re.DOTALL)
+
+            # 处理每个部分
             for i, part in enumerate(markmap_parts):
-                if i % 2 == 0:  # 普通内容，需要进一步检查是否包含 mermaid
+                if i % 2 == 0:  # 普通内容，需要进一步检查是否包含 mermaid 和 PDF
                     if part.strip():
                         # 检查这部分是否包含 mermaid 占位符
                         mermaid_parts = re.split(mermaid_placeholder_pattern, part, flags=re.DOTALL)
 
                         # 交替显示内容和 mermaid
                         for j, mermaid_part in enumerate(mermaid_parts):
-                            if j % 2 == 0:  # 普通内容
+                            if j % 2 == 0:  # 普通内容，需要进一步检查是否包含 PDF
                                 if mermaid_part.strip():
-                                    st.markdown(mermaid_part, unsafe_allow_html=True)
+                                    # 检查这部分是否包含 PDF 占位符
+                                    pdf_parts = re.split(pdf_placeholder_pattern, mermaid_part, flags=re.DOTALL)
+
+                                    # 交替显示内容和 PDF
+                                    for k, pdf_part in enumerate(pdf_parts):
+                                        if k % 2 == 0:  # 普通内容
+                                            if pdf_part.strip():
+                                                st.markdown(pdf_part, unsafe_allow_html=True)
+                                        else:  # PDF 内容
+                                            if pdf_part.strip():
+                                                pdf_counter += 1
+                                                try:
+                                                    pdf_path = Path(pdf_part.strip())
+                                                    if pdf_path.exists():
+                                                        pdf_viewer(str(pdf_path), height=400, key=f"pdf_{pdf_counter}")
+                                                    else:
+                                                        st.error(f"PDF 文件不存在: {pdf_path}")
+                                                except Exception as e:
+                                                    st.error(f"PDF 加载失败: {e}")
                             else:  # mermaid 内容
                                 if mermaid_part.strip():
                                     mermaid_counter += 1
