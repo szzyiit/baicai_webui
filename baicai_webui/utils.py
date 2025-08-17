@@ -1,9 +1,13 @@
 import base64
 import re
+from pathlib import Path
 
 import streamlit as st
 from baicai_base.configs import ConfigManager
 from dotenv import load_dotenv
+from streamlit_markmap import markmap
+from streamlit_mermaid import st_mermaid
+from streamlit_pdf_viewer import pdf_viewer
 
 
 def guard_llm_setting():
@@ -756,4 +760,188 @@ def load_chapter_content(md_path, book_path):
         return processed_content, None
     except Exception as exc:
         return None, f"读取文档失败: {exc}"
+
+
+def get_chapter_from_url_params(chapter_names, default_chapter=""):
+    """
+    从URL参数中获取当前章节，支持模糊匹配
+    
+    Args:
+        chapter_names: 可用章节名称列表
+        default_chapter: 默认章节名称
+    
+    Returns:
+        tuple: (current_chapter, matched_info)
+    """
+    if not chapter_names:
+        return default_chapter, ""
+    
+    # 从 URL 参数获取当前章节，如果没有则使用默认值
+    current_chapter = st.query_params.get("chapter", default_chapter)
+    
+    # 如果从URL参数获取到章节，尝试解码并匹配
+    if current_chapter and current_chapter != default_chapter:
+        try:
+            import urllib.parse
+            
+            # 尝试解码URL参数
+            decoded_chapter = urllib.parse.unquote(current_chapter)
+            
+            # 尝试精确匹配
+            if decoded_chapter in chapter_names:
+                return decoded_chapter, ""
+            else:
+                # 尝试模糊匹配，查找包含该章节名称的章节
+                matched_chapter = None
+                for chapter_name in chapter_names:
+                    if decoded_chapter in chapter_name or chapter_name in decoded_chapter:
+                        matched_chapter = chapter_name
+                        break
+                
+                if matched_chapter:
+                    return matched_chapter, f"✅ 模糊匹配成功: `{decoded_chapter}` → `{matched_chapter}`"
+                else:
+                    # 如果仍然无法匹配，使用默认章节
+                    return default_chapter, f"❌ 匹配失败，使用默认章节: `{default_chapter}`"
+        except Exception as e:
+            # 如果解码失败，使用默认章节
+            return default_chapter, f"❌ 解码失败: {e}，使用默认章节: `{default_chapter}`"
+    
+    # 如果 URL 中的章节不在可用章节列表中，使用默认章节
+    if current_chapter not in chapter_names:
+        return default_chapter, ""
+    
+    return current_chapter, ""
+
+
+def update_chapter_url_param(selected_chapter_name, current_chapter):
+    """
+    如果选择的章节与当前URL参数不同，更新URL并重新运行
+    
+    Args:
+        selected_chapter_name: 新选择的章节名称
+        current_chapter: 当前URL参数中的章节名称
+    
+    Returns:
+        bool: 是否需要重新运行页面
+    """
+    if selected_chapter_name != current_chapter:
+        st.query_params["chapter"] = selected_chapter_name
+        return True
+    return False
+
+
+def render_special_content(content):
+    """
+    渲染特殊内容（markmap、mermaid、PDF）
+    
+    Args:
+        content: 处理后的内容
+    
+    Returns:
+        None (直接渲染到Streamlit)
+    """
+    # 检查必要的组件是否可用
+    if not all([markmap, st_mermaid, pdf_viewer]):
+        st.warning("某些渲染组件不可用，请确保安装了 streamlit-markmap、streamlit-mermaid 和 streamlit-pdf-viewer")
+        # 如果组件不可用，直接显示原始内容
+        st.markdown(content, unsafe_allow_html=True)
+        return
+    
+    # 定义占位符模式
+    markmap_placeholder_pattern = r"__MARKMAP_PLACEHOLDER__(.*?)__END_MARKMAP__"
+    mermaid_placeholder_pattern = r"__MERMAID_PLACEHOLDER__(.*?)__END_MERMAID__"
+    pdf_placeholder_pattern = r"__PDF_PLACEHOLDER__(.*?)__END_PDF__"
+    
+    # 用于生成唯一 key 的计数器
+    mermaid_counter = 0
+    markmap_counter = 0
+    pdf_counter = 0
+    
+    # 首先分割 markmap 占位符
+    markmap_parts = re.split(markmap_placeholder_pattern, content, flags=re.DOTALL)
+    
+    # 处理每个部分
+    for i, part in enumerate(markmap_parts):
+        if i % 2 == 0:  # 普通内容，需要进一步检查是否包含 mermaid 和 PDF
+            if part.strip():
+                # 检查这部分是否包含 mermaid 占位符
+                mermaid_parts = re.split(mermaid_placeholder_pattern, part, flags=re.DOTALL)
+                
+                # 交替显示内容和 mermaid
+                for j, mermaid_part in enumerate(mermaid_parts):
+                    if j % 2 == 0:  # 普通内容，需要进一步检查是否包含 PDF
+                        if mermaid_part.strip():
+                            # 检查这部分是否包含 PDF 占位符
+                            pdf_parts = re.split(pdf_placeholder_pattern, mermaid_part, flags=re.DOTALL)
+                            
+                            # 交替显示内容和 PDF
+                            for k, pdf_part in enumerate(pdf_parts):
+                                if k % 2 == 0:  # 普通内容
+                                    if pdf_part.strip():
+                                        st.markdown(pdf_part, unsafe_allow_html=True)
+                                else:  # PDF 内容
+                                    if pdf_part.strip():
+                                        pdf_counter += 1
+                                        try:
+                                            pdf_path = Path(pdf_part.strip())
+                                            if pdf_path.exists():
+                                                pdf_viewer(str(pdf_path), height=400, key=f"pdf_{pdf_counter}")
+                                            else:
+                                                st.error(f"PDF 文件不存在: {pdf_path}")
+                                        except Exception as e:
+                                            st.error(f"PDF 加载失败: {e}")
+                    else:  # mermaid 内容
+                        if mermaid_part.strip():
+                            mermaid_counter += 1
+                            st_mermaid(mermaid_part.strip(), height=400, key=f"mermaid_{mermaid_counter}")
+        else:  # markmap 内容
+            if part.strip():
+                markmap_counter += 1
+                # markmap 函数不支持 key 参数，但我们可以通过其他方式确保唯一性
+                markmap(part.strip(), height=400)
+
+
+def create_chapter_selector(chapter_names, current_chapter):
+    """
+    创建章节选择器
+    
+    Args:
+        chapter_names: 可用章节名称列表
+        current_chapter: 当前选中的章节名称
+    
+    Returns:
+        str: 选择的章节名称
+    """
+    st.subheader("选择要学习的章节")
+    
+    # 获取当前章节在列表中的索引
+    current_index = chapter_names.index(current_chapter) if current_chapter in chapter_names else 0
+    
+    # 创建下拉菜单，使用当前选中的章节
+    selected_chapter_name = st.selectbox(
+        "请选择章节：", 
+        options=chapter_names, 
+        index=current_index, 
+        help="从下拉菜单中选择要阅读的章节"
+    )
+    
+    return selected_chapter_name
+
+
+def find_selected_chapter_file(chapters, selected_chapter_name):
+    """
+    根据章节名称找到对应的章节文件
+    
+    Args:
+        chapters: 章节文件列表
+        selected_chapter_name: 选择的章节名称
+    
+    Returns:
+        Path: 章节文件路径，如果未找到则返回None
+    """
+    return next(
+        (chapter for chapter in chapters if chapter.name.replace(".md", "") == selected_chapter_name), 
+        None
+    )
 
