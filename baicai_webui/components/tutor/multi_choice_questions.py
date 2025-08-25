@@ -81,8 +81,8 @@ def multi_choice_questions(
         # Number of questions
         num_questions = st.number_input("题目数量", min_value=1, max_value=20, value=default_num_questions, step=1)
 
-        prob_lower = st.number_input("答对正确概率下限", min_value=0.0, max_value=1.0, value=0.4, step=0.1)
-        prob_upper = st.number_input("答对正确概率上限", min_value=0.0, max_value=1.0, value=0.6, step=0.1)
+        prob_lower = st.number_input("答对正确概率下限", min_value=0.0, max_value=1.0, value=0.1, step=0.1, help="答对正确概率下限，设置过高可能过滤掉过多题目")
+        prob_upper = st.number_input("答对正确概率上限", min_value=0.0, max_value=1.0, value=0.9, step=0.1, help="答对正确概率上限，设置过低可能过滤掉过多题目")
 
         configs = {
             "generate_new_survey": False,
@@ -132,6 +132,10 @@ def multi_choice_questions(
                         # Reset answers and submitted state when generating new questions
                         st.session_state.answers = []
                         st.session_state.submitted = False
+                        
+                        # Show success message and prompt user to view saved questions
+                        st.success("✅ 题目生成完成！")
+                        st.info("💡 提示：你可以点击侧边栏的'使用已有题目'按钮来查看和保存已生成的题目。")
                     except Exception as e:
                         st.error(f"发生错误: {str(e)}")
 
@@ -151,9 +155,20 @@ def multi_choice_questions(
                 "**选择章节**", chapters, index=chapters.index(charpt_name) if charpt_name in chapters else 0
             )
 
-            # Get unique levels for the selected chapter
+            # Get unique grades for the selected chapter
             chapter_files = [file for file in existing_files if file.stem.split("-")[1] == selected_chapter]
-            available_levels = sorted(set(file.stem.split("-")[2] for file in chapter_files))
+            available_grades = sorted(set(file.stem.split("-")[2] for file in chapter_files))
+
+            # Add grade selection dropdown
+            selected_grade = st.selectbox(
+                "**选择年级**",
+                available_grades,
+                index=available_grades.index(grade) if grade in available_grades else 0
+            )
+
+            # Get unique levels for the selected chapter and grade
+            grade_chapter_files = [file for file in chapter_files if file.stem.split("-")[2] == selected_grade]
+            available_levels = sorted(set(file.stem.split("-")[3] for file in grade_chapter_files))
 
             # Add multi-select for levels
             selected_levels = st.multiselect(
@@ -162,14 +177,14 @@ def multi_choice_questions(
                 default=available_levels,  # Select all levels by default
             )
 
-            # Filter files by selected chapter and levels
-            filtered_files = [file for file in chapter_files if file.stem.split("-")[2] in selected_levels]
+            # Filter files by selected chapter, grade and levels
+            filtered_files = [file for file in grade_chapter_files if file.stem.split("-")[3] in selected_levels]
 
             if filtered_files:
                 # Group files by grade
                 grade_groups = {}
                 for file in filtered_files:
-                    saved_grade = file.stem.split("-")[0]
+                    saved_grade = file.stem.split("-")[2]  # Grade is at index 2
                     if saved_grade not in grade_groups:
                         grade_groups[saved_grade] = []
                     grade_groups[saved_grade].append(file)

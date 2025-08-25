@@ -36,7 +36,7 @@ def render_model_config_form(
     )
 
     # Model input with default value
-    default_model = "deepseek-chat" if provider == "openai兼容" else "deepseek-r1-distill-llama-70b"
+    default_model = "deepseek-chat" if provider == "openai兼容" else "qwen/qwen3-32b"
     model = st.text_input(
         "模型名称", value=config.model_name or default_model, help=f"默认值: {default_model}", key=f"{key_prefix}_model"
     )

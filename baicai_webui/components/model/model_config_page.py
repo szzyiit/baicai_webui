@@ -10,7 +10,7 @@ def get_page_llm(
     title: str = None,
     info_text: str = None,
     expanded: bool = False,
-    use_default_config: bool = False,
+    use_default_config: bool = True,
 ) -> LLM:
     """Get LLM instance for a page with configuration UI
 
@@ -56,7 +56,7 @@ def get_page_llm(
                 # Create new configuration
                 config_name = st.text_input("配置名称", value=config_id or "new_config")
                 # Create a default config for new configurations
-                new_config = LLMConfig(provider="groq", model_name="deepseek-r1-distill-llama-70b", temperature=0.0)
+                new_config = LLMConfig(provider="groq", model_name="qwen/qwen3-32b", temperature=0.0)
 
                 # Define save callback that updates the configuration list
                 def save_new_config(config):
@@ -91,7 +91,7 @@ def get_page_llm(
     # Ensure we have a valid configuration
     if config is None:
         # If no configuration is available, create a default one
-        config = LLMConfig(provider="groq", model_name="deepseek-r1-distill-llama-70b", temperature=0.0)
+        config = LLMConfig(provider="groq", model_name="qwen/qwen3-32b", temperature=0.0)
         # Save the default configuration as global
         config_manager.save_config("global", config)
 
