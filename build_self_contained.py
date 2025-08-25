@@ -547,6 +547,19 @@ def verify_build_result(output_dir):
     return True
 
 
+# 全局常量定义
+# 需要排除的文件和目录模式
+EXCLUDED_PATTERNS = [
+    ".*",  # 隐藏文件和目录（包括.pyc, .pyo, .pyd等）
+    "__pycache__",  # Python缓存目录
+    "dist",
+    "build",  # 构建目录
+    "venv",
+    "tests",  # 虚拟环境和测试目录
+    "build_self_contained.py",  # 打包脚本
+]
+
+
 def build_cross_platform_package():
     """构建跨平台自包含包"""
     print("🚀 开始构建跨平台自包含包...")
@@ -577,13 +590,25 @@ def build_cross_platform_package():
     try:
         # 排除不需要的目录
         def ignore_patterns(dir, files):
-            return [".git", ".venv", "__pycache__", "*.pyc", "*.pyo", "*.pyd", "dist", "build"]
+            return EXCLUDED_PATTERNS
 
         # 复制当前目录（baicai_webui）
         print("📁 复制当前目录文件...")
         for item in Path(".").iterdir():
-            if item.name in ["dist", "build", ".git", ".venv", "__pycache__"]:
+            # 检查是否应该排除
+            should_exclude = False
+            for pattern in EXCLUDED_PATTERNS:
+                if pattern == ".*" and item.name.startswith("."):
+                    should_exclude = True
+                    break
+                elif pattern == item.name:
+                    should_exclude = True
+                    break
+
+            if should_exclude:
+                print(f"  ⏭️ 跳过: {item.name}")
                 continue
+
             if item.is_file():
                 shutil.copy2(item, Path(output_dir) / item.name)
             elif item.is_dir():
