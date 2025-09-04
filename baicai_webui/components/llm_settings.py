@@ -64,7 +64,7 @@ def render_llm_settings(sidebar=True):
         base_url = None
         groq_api_key = None
 
-        if provider == "openai":
+        if provider == "openai兼容":
             openai_api_key = container.text_input(
                 "OpenAI API Key",
                 value=os.environ.get("OPENAI_API_KEY", ""),
@@ -73,7 +73,7 @@ def render_llm_settings(sidebar=True):
             )
             base_url = container.text_input(
                 "API 基础 URL",
-                value=os.environ.get("LLM_BASE_URL", "https://api.deepseek.com" if provider == "openai" else ""),
+                value=os.environ.get("LLM_BASE_URL", "https://api.deepseek.com" if provider == "openai兼容" else ""),
                 help="输入API的基础URL。通常情况下，您可以使用默认值。",
             )
         else:

@@ -1,7 +1,7 @@
 import streamlit as st
-import os
 from baicai_base.configs import ConfigManager, LLMConfig
 from baicai_base.services.llms import ensure_api_key
+
 from baicai_webui.components.model.model_config_form import render_model_config_form
 
 
@@ -108,7 +108,17 @@ def render_model_settings():
 
         # Add new API key
         st.subheader("添加新API密钥")
-        new_key = st.text_input("密钥名称", placeholder="例如：OPENAI_API_KEY")
+
+        # Key type selection
+        key_type_options = ["OPENAI_API_KEY", "GROQ_API_KEY", "其他"]
+        selected_key_type = st.selectbox("选择密钥类型", key_type_options)
+
+        # Get the actual key name
+        if selected_key_type == "其他":
+            new_key = st.text_input("密钥名称", placeholder="请输入自定义密钥名称")
+        else:
+            new_key = selected_key_type
+
         new_value = st.text_input("密钥值", type="password")
 
         if st.button("添加密钥") and new_key and new_value:
