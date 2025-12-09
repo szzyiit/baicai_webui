@@ -1,19 +1,19 @@
 [tool.poetry]
 name = "baicai-webui"
-version = "0.1.0"
+version = "0.1.1"
 description = "WebUI for Baicai"
 authors = ["Zhaoyang tech <gengyabc@aliyun.com>"]
-readme = "README.md"
+readme = "Readme.md"
 license = "MIT"
 keywords = ["python", "agent", "AI", "machine learning", "LLM"]
 
 [tool.poetry.dependencies]
 python = ">=3.10, <3.12"
-baicai-base = { path = "../baicai_base", develop = true }
+baicai-base = "0.1.2"
 streamlit = ">=1.43.0,<2.0.0"
 streamlit-mermaid = ">=0.3.0,<0.4.0"
 streamlit-flow-component = ">=1.6.1,<2.0.0"
-baicai-dev = { path = "../baicai_dev", develop = true }
+baicai-dev = "0.1.0"
 streamlit-markmap = "^1.0.1"
 streamlit-pdf-viewer = "^0.0.26"
 
@@ -27,7 +27,7 @@ pyinstaller = "^6.15.0"
 [tool.poetry.group.tutor]
 
 [tool.poetry.group.tutor.dependencies]
-baicai-tutor = { path = "../baicai_tutor", develop = true }
+baicai-tutor = "0.1.0"
 
 [tool.poetry.scripts]
 baicai-webui = "baicai_webui.cli:main"
