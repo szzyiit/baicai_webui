@@ -101,6 +101,9 @@ python build_self_contained.py
    - `.cache.zip`：缓存数据
    - `.fastai.zip`：FastAI 相关数据
 
+4. **教材**
+   - `人工智能+应用基础 课本（可在obsidian直接打开）.zip`
+
 4. **解压和配置**：
 
    解压下载的 zip 文件，并按以下规则放置：
@@ -113,6 +116,7 @@ python build_self_contained.py
    - **可选文件夹**（仅在下载了对应 zip 文件时）：
      - 将 `.cache` 文件夹放入用户主目录
      - 将 `.fastai` 文件夹放入用户主目录
+     - 若源码安装，需要查看教材，首次开启软件进入“教材学习”，会有类似这样报错：“未找到 AI_intro_book 文件夹: /Users/xxxx/.../lib/python3.11/site-packages/AI_intro_book”。记录这个位置，将`人工智能+应用基础 课本（可在obsidian直接打开）.zip`解压后的“AI_intro_book”放入对应位置即可。
 
 ### pip 安装方式运行
 

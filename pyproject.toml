@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "baicai-webui"
-version = "0.1.1"
+version = "0.1.2"
 description = "WebUI for Baicai"
 authors = ["Zhaoyang tech <gengyabc@aliyun.com>"]
 readme = "Readme.md"
@@ -16,6 +16,7 @@ streamlit-flow-component = ">=1.6.1,<2.0.0"
 baicai-dev = "0.1.0"
 streamlit-markmap = "^1.0.1"
 streamlit-pdf-viewer = "^0.0.26"
+baicai-tutor = "0.1.0"
 
 [tool.poetry.group.dev]
 optional = true
@@ -24,10 +25,6 @@ optional = true
 watchdog = "^6.0.0"
 pyinstaller = "^6.15.0"
 
-[tool.poetry.group.tutor]
-
-[tool.poetry.group.tutor.dependencies]
-baicai-tutor = "0.1.0"
 
 [tool.poetry.scripts]
 baicai-webui = "baicai_webui.cli:main"
