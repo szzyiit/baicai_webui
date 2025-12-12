@@ -100,7 +100,6 @@ python build_self_contained.py
 3. **可选文件**（仅在网络环境受限时下载）：
    - `.cache.zip`：缓存数据
    - `.fastai.zip`：FastAI 相关数据
-   - `huggingface.zip`：Hugging Face 模型数据
 
 4. **解压和配置**：
 
@@ -114,7 +113,6 @@ python build_self_contained.py
    - **可选文件夹**（仅在下载了对应 zip 文件时）：
      - 将 `.cache` 文件夹放入用户主目录
      - 将 `.fastai` 文件夹放入用户主目录
-     - 将 `huggingface` 文件夹放入 `.cache` 文件夹内（即 `~/.cache/huggingface/` 或 `C:\Users\你的用户名\.cache\huggingface\`）
 
 ### pip 安装方式运行
 
