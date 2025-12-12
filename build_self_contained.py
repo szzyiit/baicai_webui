@@ -63,7 +63,7 @@ def download_windows_python(output_dir):
         print(f"🌐 从 {url} 下载便携式Python...")
 
         try:
-            print(f"🌐 正在下载便携式Python...")
+            print("🌐 正在下载便携式Python...")
             urllib.request.urlretrieve(url, cache_file)
             print(f"✅ 便携式Python下载完成，已缓存到: {cache_file}")
         except Exception as e:
@@ -95,7 +95,7 @@ def download_windows_python(output_dir):
 
 
 def create_windows_python_config(output_dir):
-    """为Windows便携式Python创建配置文件"""
+    """为Windows便携式Python创建配置"""
     print("⚙️ 配置Windows便携式Python...")
 
     python_dir = Path(output_dir) / "python"
@@ -106,35 +106,49 @@ def create_windows_python_config(output_dir):
 
     print("✅ 使用便携式Python标准配置（Lib/site-packages）")
 
-    # 复制site-packages到Python的Lib目录
+    # 检查是否已有完整的site-packages（检查关键包是否存在）
+    streamlit_check = target_site_packages / "streamlit"
+    if streamlit_check.exists() and streamlit_check.is_dir():
+        print("✅ site-packages已在正确位置（包含streamlit）")
+        return True
+
+    # 如果不存在完整包，从临时目录移动
     source_site_packages = Path(output_dir) / "site-packages"
     if source_site_packages.exists():
+        print(f"📁 移动site-packages到 {target_site_packages}...")
+        print("   (从临时目录移动到便携式Python标准位置)")
+
+        # 如果目标目录已存在，先备份配置文件
+        config_files = []
         if target_site_packages.exists():
-            try:
-                shutil.rmtree(target_site_packages)
-            except PermissionError:
-                print("⚠️ 无法删除现有site-packages目录，尝试强制删除...")
-                # 在Windows上，有时需要强制删除
-                import time
+            for config_file in ["sitecustomize.py", "baicai-self-contained.pth"]:
+                config_path = target_site_packages / config_file
+                if config_path.exists():
+                    config_files.append((config_file, config_path.read_bytes()))
 
-                time.sleep(1)
-                try:
-                    shutil.rmtree(target_site_packages, ignore_errors=True)
-                except:
-                    pass
+        # 删除目标目录（如果存在）
+        if target_site_packages.exists():
+            shutil.rmtree(target_site_packages)
 
-        print(f"📁 复制site-packages到 {target_site_packages}...")
+        # 复制整个site-packages目录
         shutil.copytree(source_site_packages, target_site_packages)
-        print("✅ 复制site-packages到Lib目录完成")
 
-        # 同时保留根目录的site-packages作为备份
-        backup_site_packages = python_dir / "site-packages"
-        if backup_site_packages.exists():
-            shutil.rmtree(backup_site_packages)
-        shutil.copytree(source_site_packages, backup_site_packages)
-        print("✅ 创建备份site-packages目录")
+        # 恢复配置文件（如果之前存在）
+        for config_file, content in config_files:
+            config_path = target_site_packages / config_file
+            config_path.write_bytes(content)
+
+        print("✅ site-packages已移动到Lib目录")
+
+        # 删除临时目录
+        print("🗑️ 删除临时目录的site-packages（避免重复）...")
+        try:
+            shutil.rmtree(source_site_packages)
+            print("✅ 已删除临时目录的site-packages")
+        except Exception as e:
+            print(f"⚠️ 警告：无法删除临时目录的site-packages: {e}")
     else:
-        print("❌ 错误：源site-packages目录不存在")
+        print("❌ 错误：未找到临时site-packages目录")
         return False
 
     return True
@@ -144,63 +158,40 @@ def create_python_config(python_dir):
     """创建Python配置文件"""
     print("⚙️ 创建Python配置文件...")
 
-    site_packages_dir = python_dir / "site-packages"
-    site_packages_dir.mkdir(exist_ok=True)
+    # 配置文件应该放在Lib/site-packages中（便携式Python标准位置）
+    site_packages_dir = python_dir / "Lib" / "site-packages"
+    site_packages_dir.mkdir(parents=True, exist_ok=True)
 
     # 创建sitecustomize.py
-    sitecustomize_content = """import sys
+    # Note: Use ASCII-only comments to avoid encoding issues on Windows
+    sitecustomize_content = """# -*- coding: utf-8 -*-
+import sys
 import os
 
-# 获取当前文件所在目录（site-packages）
+# Get current directory (site-packages)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# 获取Python安装目录
+# Get Python installation directory
 python_dir = os.path.dirname(current_dir)
 
-# 获取项目根目录（自包含包的根目录）
+# Get project root directory
 project_root = os.path.dirname(python_dir)
 
-# 添加项目根目录到Python路径
+# Add project root to Python path (for accessing source code if needed)
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# 添加baicai_webui路径
-baicai_webui_path = os.path.join(project_root, "baicai_webui")
-if baicai_webui_path not in sys.path:
-    sys.path.insert(0, baicai_webui_path)
-
-# 添加baicai_base路径
-baicai_base_path = os.path.join(project_root, "baicai_base")
-if baicai_base_path not in sys.path:
-    sys.path.insert(0, baicai_base_path)
-
-# 添加baicai_dev路径
-baicai_dev_path = os.path.join(project_root, "baicai_dev")
-if baicai_dev_path not in sys.path:
-    sys.path.insert(0, baicai_dev_path)
-
-# 添加baicai_tutor路径
-baicai_tutor_path = os.path.join(project_root, "baicai_tutor")
-if baicai_tutor_path not in sys.path:
-    sys.path.insert(0, baicai_tutor_path)
-
-# 确保Lib/site-packages在路径中（便携式Python）
+# Ensure Lib/site-packages is in path (portable Python standard location)
 lib_site_packages = os.path.join(python_dir, "Lib", "site-packages")
 if lib_site_packages not in sys.path:
     sys.path.insert(0, lib_site_packages)
 
-# 确保根目录的site-packages也在路径中
-root_site_packages = os.path.join(project_root, "site-packages")
-if root_site_packages not in sys.path:
-    sys.path.insert(0, root_site_packages)
+# Note: Root site-packages has been removed to avoid duplication
+# All packages are in python/Lib/site-packages
 
-# 打印调试信息
-print(f"Python路径配置完成:")
-print(f"  项目根目录: {project_root}")
-print(f"  baicai_webui: {baicai_webui_path}")
-print(f"  baicai_base: {baicai_base_path}")
-print(f"  baicai_dev: {baicai_dev_path}")
-print(f"  baicai_tutor: {baicai_tutor_path}")
+# Print debug info
+print("Python path configuration completed")
+print(f"  Project root: {project_root}")
 """
 
     sitecustomize_file = site_packages_dir / "sitecustomize.py"
@@ -208,21 +199,18 @@ print(f"  baicai_tutor: {baicai_tutor_path}")
         f.write(sitecustomize_content)
 
     # 创建baicai-self-contained.pth
+    # Note: .pth files are read with system encoding on Windows, avoid non-ASCII characters
     pth_file = site_packages_dir / "baicai-self-contained.pth"
-    pth_content = f"""import sys
+    pth_content = """import sys
 import os
 
-# 添加项目路径
+# Add project root to Python path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
-
-# 添加baicai_webui路径
-baicai_path = os.path.join(project_root, "baicai_webui")
-if baicai_path not in sys.path:
-    sys.path.insert(0, baicai_path)
 """
 
+    # Write with UTF-8 encoding, but content is ASCII-only to avoid encoding issues
     with open(pth_file, "w", encoding="utf-8") as f:
         f.write(pth_content)
 
@@ -283,8 +271,13 @@ def clean_path_references(site_packages_dir):
     return cleaned_count
 
 
-def copy_dependencies(output_dir):
-    """复制依赖包"""
+def copy_dependencies(output_dir, target_site_packages=None):
+    """复制依赖包到指定位置
+    
+    Args:
+        output_dir: 输出目录
+        target_site_packages: 目标site-packages目录，如果为None则使用临时目录
+    """
     print("📦 复制依赖包...")
 
     # 获取当前虚拟环境的site-packages
@@ -313,27 +306,37 @@ def copy_dependencies(output_dir):
                 print(f"  - {path}")
         return False
 
-    # 复制到输出目录
-    target_site_packages = Path(output_dir) / "site-packages"
+    # 确定目标目录
+    if target_site_packages is None:
+        # 使用临时目录（向后兼容）
+        target_site_packages = Path(output_dir) / "site-packages"
+    else:
+        target_site_packages = Path(target_site_packages)
+        target_site_packages.mkdir(parents=True, exist_ok=True)
 
     # 检查是否需要重新复制
     need_copy = True
-    if target_site_packages.exists():
+    if target_site_packages.exists() and list(target_site_packages.iterdir()):
         # 检查目标目录是否已经是最新的
-        source_mtime = venv_site_packages.stat().st_mtime
-        target_mtime = target_site_packages.stat().st_mtime
+        try:
+            source_mtime = venv_site_packages.stat().st_mtime
+            target_mtime = target_site_packages.stat().st_mtime
 
-        # 如果目标目录比源目录新，说明可能已经是最新的
-        if target_mtime >= source_mtime:
-            # 进一步检查关键文件是否存在
-            streamlit_check = target_site_packages / "streamlit"
-            if streamlit_check.exists():
-                print(f"✅ 使用现有的site-packages目录（已是最新）")
-                need_copy = False
+            # 如果目标目录比源目录新，说明可能已经是最新的
+            if target_mtime >= source_mtime:
+                # 进一步检查关键文件是否存在
+                streamlit_check = target_site_packages / "streamlit"
+                if streamlit_check.exists():
+                    print("✅ 使用现有的site-packages目录（已是最新）")
+                    need_copy = False
+        except (OSError, AttributeError):
+            # 如果无法比较时间戳，继续复制
+            pass
 
     if need_copy:
-        if target_site_packages.exists():
+        if target_site_packages.exists() and list(target_site_packages.iterdir()):
             shutil.rmtree(target_site_packages)
+            target_site_packages.mkdir(parents=True, exist_ok=True)
 
         print(f"📁 从 {venv_site_packages} 复制到 {target_site_packages}")
         shutil.copytree(venv_site_packages, target_site_packages)
@@ -366,8 +369,8 @@ if not exist "python\\python.exe" (
     exit /b 1
 )
 
-REM 设置环境变量
-set PYTHONPATH=%~dp0;%~dp0baicai_webui;%~dp0baicai_base;%~dp0baicai_dev;%~dp0baicai_tutor
+REM 设置环境变量（baicai_* 包已通过pip安装，只需项目根目录用于访问app.py）
+set PYTHONPATH=%~dp0
 
 REM 启动应用
 echo 启动中...
@@ -394,8 +397,8 @@ if [ ! -f "python/python" ]; then
     exit 1
 fi
 
-# 设置环境变量
-export PYTHONPATH="$(pwd):$(pwd)/baicai_webui"
+# 设置环境变量（baicai_* 包已通过pip安装，只需项目根目录用于访问app.py）
+export PYTHONPATH="$(pwd)"
 
 # 启动应用
 echo "启动中..."
@@ -445,64 +448,23 @@ def verify_build_result(output_dir):
     if python_exe.exists():
         print(f"✅ Python解释器: {python_exe}")
     else:
-        print(f"❌ 错误：未找到Python解释器")
+        print("❌ 错误：未找到Python解释器")
         return False
 
-    # 检查site-packages（检查多个可能的位置）
-    site_packages_found = False
-
-    # 检查根目录的site-packages
-    site_packages = output_path / "site-packages"
-    if site_packages.exists():
-        print(f"✅ 根目录site-packages: {site_packages}")
-        site_packages_found = True
-
-        # 检查关键包
-        streamlit_dir = site_packages / "streamlit"
-        if streamlit_dir.exists():
-            print("✅ streamlit包已安装（根目录）")
-        else:
-            print("⚠️ 警告：根目录未找到streamlit包")
-
-    # 检查Python Lib目录下的site-packages
+    # 检查site-packages（只检查python/Lib/site-packages，已优化避免重复）
     python_lib_site_packages = output_path / "python" / "Lib" / "site-packages"
     if python_lib_site_packages.exists():
         print(f"✅ Python Lib site-packages: {python_lib_site_packages}")
-        site_packages_found = True
 
         # 检查关键包
         streamlit_dir = python_lib_site_packages / "streamlit"
         if streamlit_dir.exists():
-            print("✅ streamlit包已安装（Lib目录）")
+            print("✅ streamlit包已安装")
         else:
-            print("⚠️ 警告：Lib目录未找到streamlit包")
-
-    # 检查Python根目录下的site-packages
-    python_site_packages = output_path / "python" / "site-packages"
-    if python_site_packages.exists():
-        print(f"✅ Python根目录site-packages: {python_site_packages}")
-        site_packages_found = True
-
-        # 检查关键包
-        streamlit_dir = python_site_packages / "streamlit"
-        if streamlit_dir.exists():
-            print("✅ streamlit包已安装（Python根目录）")
-        else:
-            print("⚠️ 警告：Python根目录未找到streamlit包")
-
-    if not site_packages_found:
-        print("❌ 错误：未找到任何site-packages目录")
-        return False
-
-    # 确保至少有一个位置有streamlit包
-    streamlit_found = False
-    for sp_dir in [site_packages, python_lib_site_packages, python_site_packages]:
-        if sp_dir.exists() and (sp_dir / "streamlit").exists():
-            streamlit_found = True
-            break
-
-    if not streamlit_found:
-        print("❌ 错误：在所有位置都未找到streamlit包")
+            print("❌ 错误：未找到streamlit包")
+            return False
+    else:
+        print("❌ 错误：未找到site-packages目录")
         return False
 
         # 检查便携式Python配置
@@ -514,13 +476,8 @@ def verify_build_result(output_dir):
             print("❌ 错误：未检测到便携式Python的Lib目录")
             return False
 
-    # 检查sitecustomize.py文件（可能在python/site-packages中）
-    sitecustomize_file = site_packages / "sitecustomize.py"
-    if not sitecustomize_file.exists():
-        # 尝试在python/site-packages中查找
-        python_site_packages = output_path / "python" / "site-packages"
-        sitecustomize_file = python_site_packages / "sitecustomize.py"
-
+    # 检查sitecustomize.py文件（在python/Lib/site-packages中）
+    sitecustomize_file = python_lib_site_packages / "sitecustomize.py"
     if sitecustomize_file.exists():
         print("✅ sitecustomize.py文件已创建")
     else:
@@ -614,18 +571,6 @@ def build_cross_platform_package():
             elif item.is_dir():
                 shutil.copytree(item, Path(output_dir) / item.name, ignore=ignore_patterns)
 
-        # 复制上级目录中的相关模块
-        print("📁 复制相关模块...")
-        parent_dir = Path("..")
-        modules_to_copy = ["baicai_base", "baicai_dev", "baicai_tutor"]
-
-        for module in modules_to_copy:
-            module_path = parent_dir / module
-            if module_path.exists():
-                print(f"  📁 复制 {module}...")
-                shutil.copytree(module_path, Path(output_dir) / module, ignore=ignore_patterns)
-            else:
-                print(f"  ⚠️ 警告：未找到 {module} 模块")
 
         print("✅ 项目文件复制完成")
     except Exception as e:
@@ -640,19 +585,15 @@ def build_cross_platform_package():
     if not create_cross_platform_python(output_dir):
         return False
 
-    # 创建Python配置文件
-    python_dir = Path(output_dir) / "python"
-    if not create_python_config(python_dir):
-        return False
-
-    # 为Windows嵌入式Python创建配置
+    # 为Windows便携式Python创建配置（复制site-packages到Lib/site-packages）
     if sys.platform == "win32":
         if not create_windows_python_config(output_dir):
             return False
-        # 重新创建Python配置文件，因为create_windows_python_config可能覆盖了site-packages
-        python_dir = Path(output_dir) / "python"
-        if not create_python_config(python_dir):
-            return False
+
+    # 创建Python配置文件（在site-packages复制完成后）
+    python_dir = Path(output_dir) / "python"
+    if not create_python_config(python_dir):
+        return False
 
     # 创建启动脚本
     if not create_smart_launch_scripts(output_dir):
