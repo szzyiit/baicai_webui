@@ -1,51 +1,53 @@
 # Baicai WebUI
 
-A modern web interface for the Baicai AI agent system, built with Streamlit.
+Baicai WebUI：面向教学的白菜人工智能平台Web界面。
 
-## Overview
+## 概述
 
-Baicai WebUI provides an intuitive and interactive web interface for interacting with the Baicai AI agent system. It offers visualization capabilities for agent workflows, real-time interaction with AI agents, and a user-friendly environment for managing and monitoring agent activities.
+Baicai WebUI 为交互式教材打造一个示例，它提供了学情调研、个性化教材生成、个性化问答、人工智能实验智能体、智能体工作流的可视化功能、与 AI 智能体的实时交互，以及用于管理和监控智能体活动的用户友好环境。
 
-## Features
+## 功能特性
 
-- 🎨 Modern, responsive web interface built with Streamlit
-- 📊 Interactive workflow visualization with Mermaid diagrams
-- 🔄 Real-time agent interaction and monitoring
-- 📈 Flow-based agent workflow visualization
-- 🔌 Seamless integration with Baicai Base framework
+- 🎨 基于 Streamlit 构建的现代化、响应式 Web 界面
+- 📊 使用 Mermaid 图表的交互式工作流可视化
+- 🔄 实时智能体交互和监控
+- 📈 基于流程的智能体工作流可视化
 
-## Requirements
+## 系统要求
 
-- Python 3.10 or higher (but less than 3.12)
-- Poetry for dependency management
-- Baicai Base package installed
+- Python 3.10 或更高版本（但低于 3.12）
+- Poetry 用于依赖管理
+- **Windows 用户**：需要提前安装 Microsoft Visual C++ Redistributable（Microsoft Visual C++ 可再发行组件包）。请根据您的系统架构下载并安装 [Microsoft Visual C++ 2015-2022 Redistributable](https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist)（x64 版本适用于大多数现代 Windows 系统）
 
-## Installation
+## 安装
 
-### 方法1: 使用 Poetry 安装（开发环境）
+如果不想安装，直接进入百度网盘：https://pan.baidu.com/s/1T8p-WZ48q46k-DHccah6GQ?pwd=3edj 提取码:3edj，下载相关文件，具体见[运行应用](#运行应用)
 
-1. 确保已安装 Baicai Base:
+### 方法1: 使用 pip 安装（推荐）
+
+这是最简单的安装方式，适用于大多数用户。
 
 ```bash
-cd ../baicai_base
+pip install baicai-webui
+```
+
+安装完成后，可以通过以下命令启动应用：
+
+```bash
+baicai-webui
+```
+
+### 方法2: 使用 Poetry 安装（开发环境）
+
+1. 安装 Baicai WebUI 及其依赖:
+
+```bash
+cd baicai_webui
 poetry install
 ```
 
-2. 安装 Baicai WebUI:
 
-```bash
-cd ../baicai_webui
-poetry install
-```
-
-3. 设置环境变量:
-
-```bash
-cp .env.example .env
-# 编辑 .env 文件配置
-```
-
-### 方法2: 构建自包含包（生产环境）
+### 方法3: 构建自包含包（生产环境）
 
 自包含包包含了完整的 Python 环境和所有依赖，无需安装任何环境即可运行。
 
@@ -71,7 +73,7 @@ python build_self_contained.py
 1. 将 `dist/baicai-self-contained/` 目录压缩分发给用户
 2. 用户解压后，运行启动脚本即可：
    - **Windows**: 双击 `启动应用.bat`
-   - **Linux/Mac**: 在终端运行 `./启动应用.sh`
+   - **Linux/Mac**: 在终端运行 `./启动应用.sh`(无法使用，勿用)
 
 #### 自包含包特点
 
@@ -81,99 +83,75 @@ python build_self_contained.py
 ✅ 即解压即用
 ✅ 跨平台兼容
 
-## Running the Application
+## 运行应用
 
-### 开发环境运行
+### 前期准备
 
-1. 激活虚拟环境:
+如果需要使用教材功能，需要做如下设置：
 
-```bash
-poetry shell
-```
+1. **下载资源文件**
 
-2. 启动 Web 界面:
+   打开百度网盘：https://pan.baidu.com/s/1T8p-WZ48q46k-DHccah6GQ?pwd=3edj 提取码:3edj
+
+2. **必需文件**（必须下载）：
+   - `.baicai.zip`：软件运行环境（可自动生成）和示例数据
+   - `数据和工作流.zip`：教材配套实验资源
+
+3. **可选文件**（仅在网络环境受限时下载）：
+   - `.cache.zip`：缓存数据
+   - `.fastai.zip`：FastAI 相关数据
+   - `huggingface.zip`：Hugging Face 模型数据
+
+4. **解压和配置**：
+
+   解压下载的 zip 文件，并按以下规则放置：
+
+   - **必需文件夹**（解压 `.baicai.zip` 后）：
+     - 将 `.baicai` 文件夹放入用户主目录
+       - Windows: `C:\Users\你的用户名\`
+       - Linux/Mac: `~/` 或 `/home/你的用户名/`
+
+   - **可选文件夹**（仅在下载了对应 zip 文件时）：
+     - 将 `.cache` 文件夹放入用户主目录
+     - 将 `.fastai` 文件夹放入用户主目录
+     - 将 `huggingface` 文件夹放入 `.cache` 文件夹内（即 `~/.cache/huggingface/` 或 `C:\Users\你的用户名\.cache\huggingface\`）
+
+### pip 安装方式运行
+
+如果使用 pip 安装，直接运行：
 
 ```bash
 baicai-webui
 ```
 
-或者直接运行:
+### Poetry 安装方式运行
+
+
+1. 启动 Web 界面:
+
+```bash
+baicai-webui
+```
+
+2. 或者直接运行:
 
 ```bash
 streamlit run baicai_webui/app.py
 ```
 
-### 自包含包运行
 
-1. 解压自包含包到任意位置
-2. 进入解压后的目录
-3. 运行启动脚本:
-   - **Windows**: 双击 `启动应用.bat`
-   - **Linux/Mac**: 在终端运行 `./启动应用.sh`
-4. 应用会自动在浏览器中打开，地址通常是 http://localhost:8501
-
-## Development
-
-### Setup Development Environment
-
-1. Install development dependencies:
-
-```bash
-poetry install --with dev
-```
-
-2. Run tests:
-
-```bash
-pytest
-```
-
-### 构建自包含包
-
-1. 确保所有依赖已安装:
-
-```bash
-poetry install
-```
-
-2. 运行构建脚本:
-
-```bash
-python build_self_contained.py
-```
-
-3. 构建完成后，自包含包位于 `dist/baicai-self-contained/` 目录
-
-4. 测试自包含包:
-
-```bash
-cd dist/baicai-self-contained
-./启动应用.sh  # Linux/Mac
-# 或
-启动应用.bat   # Windows
-```
-
-#### 构建脚本功能
-
-- 复制完整的 Python 环境（包括解释器和标准库）
-- 复制所有已安装的依赖包
-- 复制项目代码和相关模块
-- 创建启动脚本（Windows 和 Linux/Mac）
-- 自动配置 Python 路径
-- 生成说明文档
-
-### Project Structure
+### 项目结构
 
 ```
 baicai_webui/
-├── baicai_webui/           # Main package directory
-│   ├── app.py              # Main Streamlit application
-│   ├── components/         # UI components
-│   └── utils/              # Utility functions
-├── docs/                   # Documentation
-├── tests/                  # Test files
+├── baicai_webui/           # 主包目录
+│   ├── app.py              # 主 Streamlit 应用
+│   ├── components/         # UI 组件
+│   └── utils/              # 工具函数
+├── docs/                   # 文档
+├── tests/                  # 测试文件
 ├── build_self_contained.py # 自包含包构建脚本
-├── pyproject.toml          # Project configuration
+├── pyproject.toml          # 项目配置
 └── dist/                   # 构建输出目录
     └── baicai-self-contained/  # 自包含包
         ├── python/             # Python 环境
@@ -186,14 +164,14 @@ baicai_webui/
         └── README.txt          # 使用说明
 ```
 
-## Contributing
+## 贡献
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and ensure they pass
-5. Submit a pull request
+1. Fork 本仓库
+2. 创建功能分支
+3. 进行您的更改
+4. 运行测试并确保通过
+5. 提交 Pull Request
 
-## License
+## 许可证
 
-This project is licensed under the [GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.en.html) License.
+本项目采用 [GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.en.html) 许可证。
